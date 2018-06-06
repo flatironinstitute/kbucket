@@ -1,0 +1,40 @@
+{
+  "name": "kbucket",
+  "version": "0.3.0",
+  "description": "Data sharing for scientific research.",
+  "main": "",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/flatironinstitute/kbucket.git"
+  },
+  "keywords": [
+    "mountainlab",
+    "prv"
+  ],
+  "author": "Jeremy Magland",
+  "license": "Apache-2.0",
+  "bugs": {
+    "url": "https://github.com/flatironinstitute/kbucket/issues"
+  },
+  "homepage": "https://github.com/flatironinstitute/kbucket#readme",
+  "dependencies": {
+    "async": "^2.6.1",
+    "chokidar": "^2.0.3",
+    "email-validator": "^2.0.4",
+    "express": "^4.16.3",
+    "find-port": "^2.0.1",
+    "inquirer": "^6.0.0",
+    "keypair": "^1.0.1",
+    "node-sha1": "^1.0.1",
+    "request": "^2.87.0",
+    "user-settings": "^0.2.0",
+    "ws": "^5.2.0"
+  },
+  "devDependencies": {
+    "bootstrap": "^4.1.1",
+    "jquery": "^3.3.1"
+  }
+}
