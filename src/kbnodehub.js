@@ -119,7 +119,7 @@ function KBNodeHub(kbnode_directory) {
     // Used internally -- will be obfuscated in the future -- do not use directly
     app.use('/share/:kbshare_id/:path(*)', function(req, res) {
       var params = req.params;
-      API.handleForwardToConnectedShare(params.kbshare_id, req.method, params.path, req, res);
+      API.handleForwardToConnectedShare(params.kbshare_id, params.kbshare_id+'/'+params.path, req, res);
     });
 
     // API proxy download

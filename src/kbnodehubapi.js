@@ -155,7 +155,7 @@ function KBNodeHubApi(config,manager) {
             return;
           }
           // Forward the http request to the share through the websocket in order to handle the download
-          SS.processHttpRequest(req.method, `download/${internal_find.path}`, req, res);
+          SS.processHttpRequest(`download/${internal_find.path}`, req, res);
         });
       }
     } else {
@@ -170,7 +170,7 @@ function KBNodeHubApi(config,manager) {
   	Forward arbitrary http/https requests through the websocket to the share computer (computer running kbucket-share)
   	Note that the kbshare_id must be known to access the computer in this way
   */
-  function handle_forward_to_connected_share(kbshare_id, method, path, req, res) {
+  function handle_forward_to_connected_share(kbshare_id, path, req, res) {
     allow_cross_domain_requests(req, res);
     // find the share by kbshare_id
     var SS = manager.connectedShareManager().getConnectedShare(kbshare_id);
@@ -183,7 +183,7 @@ function KBNodeHubApi(config,manager) {
       return;
     }
     // Forward the request to the share through the websocket
-    SS.processHttpRequest(method, path, req, res);
+    SS.processHttpRequest(path, req, res);
   }
 
   function handle_upload(req, res) {

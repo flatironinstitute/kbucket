@@ -3,6 +3,8 @@ exports.KBucketHubManager=KBucketHubManager;
 const async=require('async')
 const fs=require('fs');
 
+const HttpOverWebSocketClient = require(__dirname + '/httpoverwebsocket.js').HttpOverWebSocketClient;
+
 var LIMITS={
   max_kbshare_connections:1e3,
   max_files_per_kbshare_connection:30,
@@ -184,7 +186,7 @@ function KBConnectedShareManager() {
       return;
     }
     // create a new KBConnectedShare object, and pass in the info
-    // on_message_handler is a callback functino that allows the share to send websocket messages back to the share
+    // on_message_handler is a callback function that allows the share to send websocket messages back to the share
     m_connected_shares[kbshare_id] = new KBConnectedShare(kbshare_id, info, on_message_handler);
     callback(null);
   }
@@ -256,8 +258,8 @@ function KBConnectedShare(kbshare_id, info, on_message_handler) {
   this.processMessageFromConnectedShare = function(msg, callback) {
     processMessageFromConnectedShare(msg, callback);
   };
-  this.processHttpRequest = function(method, path, req, res) {
-    processHttpRequest(method, path, req, res);
+  this.processHttpRequest = function(path, req, res) {
+    processHttpRequest(path, req, res);
   };
   this.findFile = function(opts, callback) {
     findFile(opts, callback);
@@ -269,8 +271,23 @@ function KBConnectedShare(kbshare_id, info, on_message_handler) {
   var m_indexed_files_by_sha1 = {}; // the files on the share indexed by sha1
   var m_indexed_files_by_path = {}; // the files on the share indexed by path
 
+  var m_http_over_websocket_client=new HttpOverWebSocketClient();
+
   function processMessageFromConnectedShare(msg, callback) {
     // We got a message msg from the share computer
+    
+    if (msg.message_type=='http') {
+      m_http_over_websocket_client.processMessageFromServer(msg,function(err) {
+        if (err) {
+          callback('Error in http over websocket: '+err);
+          return;
+        }
+        callback(null);
+      });
+      return;
+    }
+
+    /*
     if (((msg.command || '').startsWith('http_')) && (!(msg.request_id in m_response_handlers))) {
       // If msg.command starts with http_, then it is a response to a request.
       // It should therefore have a request_id that matches something in our response handlers
@@ -278,6 +295,9 @@ function KBConnectedShare(kbshare_id, info, on_message_handler) {
       callback(`Request id not found (in ${msg.command}): ${msg.request_id}`);
       return;
     }
+    */
+
+    /*
     if (msg.command == 'http_set_response_headers') {
       // Set the headers for the response to the forwarded http request
       m_response_handlers[msg.request_id].setResponseHeaders(msg.status, msg.status_message, msg.headers);
@@ -295,7 +315,8 @@ function KBConnectedShare(kbshare_id, info, on_message_handler) {
       // Report response error for forwarded http request (other than those reported in setResponseHeaders above)
       m_response_handlers[msg.request_id].reportError(msg.error);
       callback(null);
-    } else if (msg.command == 'set_file_info') {
+    } else */
+    if (msg.command == 'set_file_info') {
       // The share is sending the information for a particular file in the share
 
       //first remove the old record from our index, if it exists
@@ -330,9 +351,16 @@ function KBConnectedShare(kbshare_id, info, on_message_handler) {
     }
   }
 
-  function processHttpRequest(method, path, req, res) {
+  function processHttpRequest(path, req, res) {
     // Forward a http request through the websocket to the share computer (computer running kbucket-share)
 
+    m_http_over_websocket_client.handleRequest(path, req,res,message_sender);
+
+    function message_sender(msg) {
+      send_message_to_connected_share(msg);
+    }
+
+    /*
     // make a unique id for the request (will be included in all correspondence)
     var req_id = make_random_id(8);
 
@@ -404,6 +432,7 @@ function KBConnectedShare(kbshare_id, info, on_message_handler) {
         error: errstr
       });
     }
+    */
   }
 
   function findFile(opts, callback) {

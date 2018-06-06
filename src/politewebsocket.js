@@ -16,6 +16,7 @@ function PoliteWebSocket(opts) {
   this.sendMessage=function(X) {sendMessage(X);};
   this.close=function() {close();}
   this.sendErrorAndClose=function(err) {send_error_and_close_socket(err);};
+  this.forwardHttpRequest=function(req,res) {forward_http_request(req,res);};
 
   // event handlers
   this.onMessage=function(handler) {m_on_message_handlers.push(handler);};

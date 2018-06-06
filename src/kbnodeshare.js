@@ -10,6 +10,7 @@ const request = require('request');
 const KBNodeConfig = require(__dirname + '/kbnodeconfig.js').KBNodeConfig;
 const PoliteWebSocket = require(__dirname + '/politewebsocket.js').PoliteWebSocket;
 const KBNodeShareIndexer = require(__dirname + '/kbnodeshareindexer.js').KBNodeShareIndexer;
+const HttpOverWebSocketServer = require(__dirname + '/httpoverwebsocket.js').HttpOverWebSocketServer;
 
 // TODO: think of a better default range
 const KBUCKET_SHARE_PORT_RANGE = process.env.KBUCKET_SHARE_PORT_RANGE || '2000-3000';
@@ -26,6 +27,7 @@ function KBNodeShare(kbnode_directory) {
   var m_config = new KBNodeConfig(kbnode_directory);
   var m_app = null;
   var m_parent_hub_socket = null;
+  var m_http_over_websocket_server=new HttpOverWebSocketServer();
   var HTTP_REQUESTS={};
 
   function initialize(opts, callback) {
@@ -117,6 +119,7 @@ function KBNodeShare(kbnode_directory) {
         return;
       }
       m_app.port = listen_port;
+      m_http_over_websocket_server.setForwardUrl(`http://localhost:${listen_port}`);
       m_config.setListenPort(listen_port);
       m_app.listen(listen_port, function() {
         console.log(`Listening on port ${listen_port}`);
@@ -177,6 +180,17 @@ function KBNodeShare(kbnode_directory) {
       return;
     }
 
+    if (msg.message_type=='http') {
+    	m_http_over_websocket_server.processMessageFromClient(msg,send_message_to_parent_hub,function(err) {
+    		if (err) {
+    			console.error('http over websocket error: '+err+'. Closing websocket.');
+    			PWS.close();
+    		}
+    	});
+    	return;
+		}
+
+    /*
     if (msg.command == 'http_initiate_request') {
       if (msg.request_id in HTTP_REQUESTS) {
         console.log(`Request with id=${msg.request_id} already exists (in http_initiate_request). Closing websocket.`);
@@ -205,7 +219,8 @@ function KBNodeShare(kbnode_directory) {
       }
       var REQ = HTTP_REQUESTS[msg.request_id];
       REQ.endRequest();
-    } else if (msg.message == 'ok') {
+    } else */
+    if (msg.message == 'ok') {
       // just ok.
     } else {
       console.log(`Unexpected command: ${msg.command}. Closing websocket.`);
