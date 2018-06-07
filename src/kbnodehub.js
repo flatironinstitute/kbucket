@@ -4,6 +4,7 @@ const async = require('async');
 const express = require('express');
 const WebSocket = require('ws');
 const crypto = require('crypto');
+const fs = require('fs');
 
 const KBNodeConfig = require(__dirname + '/kbnodeconfig.js').KBNodeConfig;
 const KBNodeHubApi = require(__dirname + '/kbnodehubapi.js').KBNodeHubApi;
