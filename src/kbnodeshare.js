@@ -53,7 +53,7 @@ function KBNodeShare(kbnode_directory) {
 
   function create_config_if_needed(callback) {
     if (!m_config.configDirExists()) {
-      console.info(`Creating new kbucket share configuration in ${m_config.kbNodeDirectory}/.kbucket ...`);
+      console.info(`Creating new kbucket share configuration in ${m_config.kbNodeDirectory()}/.kbucket ...`);
       m_config.createNew('share', function(err) {
         if (err) {
           callback(err);
