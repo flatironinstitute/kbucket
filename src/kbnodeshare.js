@@ -119,7 +119,7 @@ function KBNodeShare(kbnode_directory) {
         return;
       }
       m_app.port = listen_port;
-      m_http_over_websocket_server.setForwardUrl(`http://localhost:${listen_port}`);
+      m_http_over_websocket_server.setForwardUrl(m_config.listenUrl());
       m_config.setListenPort(listen_port);
       m_app.listen(listen_port, function() {
         console.info(`Listening on port ${listen_port}`);
@@ -305,77 +305,5 @@ function KBNodeShare(kbnode_directory) {
 function is_excluded_directory_name(name) {
   var to_exclude = ['node_modules', '.git', '.kbucket'];
   return (to_exclude.indexOf(name) >= 0);
-}
-
-function HttpRequest(self_port,on_message_handler) {
-  this.initiateRequest=function(msg) {initiateRequest(msg);};
-  this.writeRequestData=function(data) {writeRequestData(data);};
-  this.endRequest=function() {endRequest();};
-
-  var m_request=null;
-
-  function initiateRequest(msg) {
-    /*
-    var opts={
-      method:msg.method,
-      hostname:'localhost',
-      port:KBUCKET_SHARE_PORT,
-      path:msg.path,
-      headers:msg.headers
-    };
-    */
-    var opts={
-      method:msg.method,
-      uri:`http://localhost:${self_port}/${msg.path}`,
-      headers:msg.headers,
-      followRedirect:false // important because we want the proxy server to handle it instead
-    }
-    m_request=request(opts);
-    m_request.on('response',function(resp) {
-      on_message_handler({command:'http_set_response_headers',status:resp.statusCode,status_message:resp.statusMessage,headers:resp.headers});
-      resp.on('error',on_response_error);
-      resp.on('data',on_response_data);
-      resp.on('end',on_response_end);
-    });
-    m_request.on('error',function(err) {
-      on_message_handler({command:'http_report_error',error:'Error in request: '+err.message});
-    });
-  }
-
-  function writeRequestData(data) {
-    if (!m_request) {
-      console.error('Unexpected: m_request is null in writeRequestData.');
-      return;
-    }
-    m_request.write(data);
-  }
-
-  function endRequest() {
-    if (!m_request) {
-      console.error('Unexpected: m_request is null in endRequest.');
-      return;
-    }
-    m_request.end();
-  }
-
-  function on_response_data(data) {
-    on_message_handler({
-      command:'http_write_response_data',
-      data_base64:data.toString('base64')
-    });
-  }
-
-  function on_response_end() {
-    on_message_handler({
-      command:'http_end_response'
-    });
-  }
-
-  function on_response_error(err) {
-    on_message_handler({
-      command:'http_report_error',
-      error:'Error in response: '+err.message
-    });
-  }
 }
 

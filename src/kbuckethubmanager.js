@@ -617,7 +617,7 @@ function KBConnectedChildHub(connection_to_child_node,config) {
 
   function findFile(opts, callback) {
     var child_node_id=connection_to_child_node.childNodeId();
-    var url = `http://localhost:${config.getConfig('listen_port')}/${config.kbNodeId()}/hub/${child_node_id}/find/${opts.sha1}`;
+    var url = `${config.listenUrl()}/${config.kbNodeId()}/hub/${child_node_id}/find/${opts.sha1}`;
     get_json(url, function(err, resp) {
       if (err) {
         callback(err);

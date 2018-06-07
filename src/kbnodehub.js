@@ -178,7 +178,7 @@ function KBNodeHub(kbnode_directory) {
     var app = m_app;
     var listen_port = m_config.getConfig('listen_port');
     m_config.setListenPort(listen_port);
-    m_http_over_websocket_server.setForwardUrl(`http://localhost:${listen_port}`);
+    m_http_over_websocket_server.setForwardUrl(${m_config.listenUrl()});
     app.set('port', listen_port);
     if (process.env.SSL != null ? process.env.SSL : listen_port % 1000 == 443) {
       // The port number ends with 443, so we are using https

@@ -69,6 +69,16 @@ function KBConnectionToParentHub(config) {
   }
 
   function process_message_from_parent_hub(msg) {
+  	/*
+  	console.log('==============================================================');
+  	console.log('==============================================================');
+  	console.log(msg);
+  	console.log('==============================================================');
+  	console.log('==============================================================');
+  	console.log('');
+  	console.log('');
+  	*/
+
     if (msg.error) {
       console.error(`Error from hub: ${msg.error}`);
       return;
