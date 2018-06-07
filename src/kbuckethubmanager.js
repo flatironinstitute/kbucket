@@ -157,14 +157,14 @@ function KBucketHubManager(config) {
 
 function KBConnectedShareManager() {
   // Manage a collection of KBConnectedShare objects, each representing a connected share (or computer running kbucket-share)
-  this.addConnectedShare = function(kbshare_id, info, on_message_handler, callback) {
-    addConnectedShare(kbshare_id, info, on_message_handler, callback);
+  this.addConnectedShare = function(kbnode_id, info, on_message_handler, callback) {
+    addConnectedShare(kbnode_id, info, on_message_handler, callback);
   };
-  this.getConnectedShare = function(kbshare_id) {
-    return m_connected_shares[kbshare_id] || null;
+  this.getConnectedShare = function(kbnode_id) {
+    return m_connected_shares[kbnode_id] || null;
   };
-  this.removeConnectedShare = function(kbshare_id) {
-    removeConnectedShare(kbshare_id);
+  this.removeConnectedShare = function(kbnode_id) {
+    removeConnectedShare(kbnode_id);
   };
   this.findFileOnConnectedShares = function(opts, callback) {
     findFileOnConnectedShares(opts, callback);
@@ -172,7 +172,7 @@ function KBConnectedShareManager() {
 
   var m_connected_shares = {};
 
-  function addConnectedShare(kbshare_id, info, on_message_handler, callback) {
+  function addConnectedShare(kbnode_id, info, on_message_handler, callback) {
     // Add a new connected share
 
     var num_connected_shares = Object.keys(m_connected_shares).length;
@@ -181,29 +181,29 @@ function KBConnectedShareManager() {
       return
     }
 
-    if (kbshare_id in m_connected_shares) {
-      callback(`A share with id=${kbshare_id} already exists.`);
+    if (kbnode_id in m_connected_shares) {
+      callback(`A share with id=${kbnode_id} already exists.`);
       return;
     }
     // create a new KBConnectedShare object, and pass in the info
     // on_message_handler is a callback function that allows the share to send websocket messages back to the share
-    m_connected_shares[kbshare_id] = new KBConnectedShare(kbshare_id, info, on_message_handler);
+    m_connected_shares[kbnode_id] = new KBConnectedShare(kbnode_id, info, on_message_handler);
     callback(null);
   }
 
-  function removeConnectedShare(kbshare_id) {
+  function removeConnectedShare(kbnode_id) {
     // remove the share from the manager
-    if (!(kbshare_id in m_connected_shares)) {
+    if (!(kbnode_id in m_connected_shares)) {
       // we don't have it anyway
       return;
     }
     // actually remove it
-    delete m_connected_shares[kbshare_id];
+    delete m_connected_shares[kbnode_id];
   }
 
   function findFileOnConnectedShares(opts, callback) {
     // Find a file by checking all of the connected shares
-    var kbshare_ids = Object.keys(m_connected_shares); // all the share keys in this manager
+    var kbnode_ids = Object.keys(m_connected_shares); // all the share keys in this manager
 
     // this is the stuff we will return in the callback
     var resp = {
@@ -215,8 +215,8 @@ function KBConnectedShareManager() {
 
     // Loop sequentially through each share key
     // TODO: shall we allow this to be parallel / asynchronous?
-    async.eachSeries(kbshare_ids, function(kbshare_id, cb) {
-      var SS = m_connected_shares[kbshare_id];
+    async.eachSeries(kbnode_ids, function(kbnode_id, cb) {
+      var SS = m_connected_shares[kbnode_id];
       if (!SS) { //maybe it disappeared
         cb(); // go to the next one
         return;
@@ -240,7 +240,7 @@ function KBConnectedShareManager() {
           // keep track of the info for this find
           // used when serving the file with the kbucket-hub acting as a proxy
           resp.internal_finds.push({
-            kbshare_id: kbshare_id, // the share key
+            kbnode_id: kbnode_id, // the share key
             path: resp0.path // the path of the file within the share
           });
         }
@@ -253,7 +253,7 @@ function KBConnectedShareManager() {
   }
 }
 
-function KBConnectedShare(kbshare_id, info, on_message_handler) {
+function KBConnectedShare(kbnode_id, info, on_message_handler) {
   // Encapsulate a single share -- a connection to a computer running kbucket-share
   this.processMessageFromConnectedShare = function(msg, callback) {
     processMessageFromConnectedShare(msg, callback);
@@ -275,7 +275,7 @@ function KBConnectedShare(kbshare_id, info, on_message_handler) {
 
   function processMessageFromConnectedShare(msg, callback) {
     // We got a message msg from the share computer
-    
+
     if (msg.message_type=='http') {
       m_http_over_websocket_client.processMessageFromServer(msg,function(err) {
         if (err) {
@@ -287,35 +287,6 @@ function KBConnectedShare(kbshare_id, info, on_message_handler) {
       return;
     }
 
-    /*
-    if (((msg.command || '').startsWith('http_')) && (!(msg.request_id in m_response_handlers))) {
-      // If msg.command starts with http_, then it is a response to a request.
-      // It should therefore have a request_id that matches something in our response handlers
-      // If it doesn't, that's a problem,
-      callback(`Request id not found (in ${msg.command}): ${msg.request_id}`);
-      return;
-    }
-    */
-
-    /*
-    if (msg.command == 'http_set_response_headers') {
-      // Set the headers for the response to the forwarded http request
-      m_response_handlers[msg.request_id].setResponseHeaders(msg.status, msg.status_message, msg.headers);
-      callback(null);
-    } else if (msg.command == 'http_write_response_data') {
-      // Write response data for forwarded http request
-      var data = Buffer.from(msg.data_base64, 'base64');
-      m_response_handlers[msg.request_id].writeResponseData(data);
-      callback(null);
-    } else if (msg.command == 'http_end_response') {
-      // End response for forwarded http request
-      m_response_handlers[msg.request_id].endResponse();
-      callback(null);
-    } else if (msg.command == 'http_report_error') {
-      // Report response error for forwarded http request (other than those reported in setResponseHeaders above)
-      m_response_handlers[msg.request_id].reportError(msg.error);
-      callback(null);
-    } else */
     if (msg.command == 'set_file_info') {
       // The share is sending the information for a particular file in the share
 
@@ -359,80 +330,6 @@ function KBConnectedShare(kbshare_id, info, on_message_handler) {
     function message_sender(msg) {
       send_message_to_connected_share(msg);
     }
-
-    /*
-    // make a unique id for the request (will be included in all correspondence)
-    var req_id = make_random_id(8);
-
-    // Various handler functions (callbacks) associated with the request
-    m_response_handlers[req_id] = {
-      setResponseHeaders: set_response_headers,
-      writeResponseData: write_response_data,
-      endResponse: end_response,
-      reportError: report_error
-    };
-
-    // Initiate the request
-    send_message_to_connected_share({
-      command: 'http_initiate_request',
-      method: req.method, // http request method
-      path: kbshare_id + '/' + path, // path of the url in the request
-      headers: req.headers, // request headers
-      request_id: req_id // the unique id used in all correspondence
-    });
-
-    req.on('data', function(data) {
-      // We received some data from the client, so we'll pass it on to the share
-      // TODO: do not base64 encode, and do not json encode -- handle this differently
-      send_message_to_connected_share({
-        command: 'http_write_request_data',
-        data_base64: data.toString('base64'),
-        request_id: req_id
-      });
-    });
-
-    req.on('end', function() {
-      // Request from the client has ended. pass on this info to the share
-      send_message_to_connected_share({
-        command: 'http_end_request',
-        request_id: req_id
-      });
-    });
-
-    function set_response_headers(status, status_message, headers) {
-      // Set the response headers and status info -- this is info coming from the share
-      res.status(status, status_message);
-      if ((headers.location) && (headers.location.startsWith('/'))) {
-        // Redirects are tricky when we are manipulating the path
-        // Need to handle this as a special case
-        // TODO: handle this better... rather than hard-coding... on the other hand, this only affects serving web pages
-        headers.location = '/share' + headers.location;
-      }
-      for (var hkey in headers) {
-        // Set each header individually
-        res.set(hkey, headers[hkey]);
-      }
-    }
-
-    function write_response_data(data) {
-      // Write response data (this data comes from the share)
-      res.write(data);
-    }
-
-    function end_response() {
-      // End the response -- we are done writing -- this was triggered by a message from the share
-      res.end();
-    }
-
-    function report_error(err) {
-      // Report an error for the response -- this was triggered by a message from the share
-      var errstr = 'Error in response: ' + err;
-      console.error(errstr);
-      res.status(500).send({
-        error: errstr
-      });
-    }
-    */
   }
 
   function findFile(opts, callback) {
@@ -458,9 +355,9 @@ function KBConnectedShare(kbshare_id, info, on_message_handler) {
       size: FF.size, // file size
       path: FF.path // file path on the share
     };
-    if (info.share_url) {
+    if (info.listen_url) {
       // The share computer has reported it's ip address, etc. So we'll use that as the direct url
-      ret.url = `${info.share_url}/${kbshare_id}/download/${FF.path}`;
+      ret.url = `${info.listen_url}/${kbnode_id}/download/${FF.path}`;
     }
     // return the results
     callback(null, ret);

@@ -8,13 +8,15 @@ const crypto = require('crypto');
 const KBNodeConfig = require(__dirname + '/kbnodeconfig.js').KBNodeConfig;
 const KBNodeHubApi = require(__dirname + '/kbnodehubapi.js').KBNodeHubApi;
 const KBucketHubManager = require(__dirname + '/kbuckethubmanager.js').KBucketHubManager;
+const HttpOverWebSocketServer = require(__dirname + '/httpoverwebsocket.js').HttpOverWebSocketServer;
 const PoliteWebSocket = require(__dirname + '/politewebsocket.js').PoliteWebSocket;
+const KBConnectionToParentHub = require(__dirname + '/kbconnectiontoparenthub.js').KBConnectionToParentHub;
 
 var debugging = true;
 
 function KBNodeHub(kbnode_directory) {
-  this.initialize = function(opts,callback) {
-    initialize(opts,callback);
+  this.initialize = function(opts, callback) {
+    initialize(opts, callback);
   };
 
   var m_config = new KBNodeConfig(kbnode_directory);
@@ -23,9 +25,12 @@ function KBNodeHub(kbnode_directory) {
   // Encapsulate some functionality in a manager
   var m_manager = new KBucketHubManager(m_config);
 
+  var m_http_over_websocket_server=new HttpOverWebSocketServer();
+  var m_connection_to_parent_hub=null;
+
   var API = new KBNodeHubApi(m_config, m_manager);
 
-  function initialize(opts,callback) {
+  function initialize(opts, callback) {
     var steps = [
       create_config_if_needed,
       initialize_config,
@@ -42,8 +47,8 @@ function KBNodeHub(kbnode_directory) {
     });
 
     function run_interactive_config(callback) {
-	    m_config.runInteractiveConfiguration(opts,callback);
-	  }
+      m_config.runInteractiveConfiguration(opts, callback);
+    }
   }
 
   function create_config_if_needed(callback) {
@@ -59,8 +64,6 @@ function KBNodeHub(kbnode_directory) {
       callback(null);
     }
   }
-
-  
 
   function initialize_config(callback) {
     m_config.initialize(function(err) {
@@ -84,15 +87,12 @@ function KBNodeHub(kbnode_directory) {
 
     KBNodeHubApi.config = m_config;
 
-    console.log('aaaaaaa');
-
     // API find -- find a file on the kbucket network (or on the local kbucket-hub disk)
     app.use('/find/:sha1/:filename(*)', function(req, res) {
       // Note: filename is just for convenience, only used in forming download urls
       var params = req.params;
       API.handleFind(params.sha1, params.filename, req, res);
     });
-    console.log('aaaaaaa b');
     app.use('/find/:sha1', function(req, res) {
       var params = req.params;
       API.handleFind(params.sha1, '', req, res);
@@ -117,9 +117,9 @@ function KBNodeHub(kbnode_directory) {
 
     // API Forward http request to a kbucket share
     // Used internally -- will be obfuscated in the future -- do not use directly
-    app.use('/share/:kbshare_id/:path(*)', function(req, res) {
+    app.use('/share/:kbnode_id/:path(*)', function(req, res) {
       var params = req.params;
-      API.handleForwardToConnectedShare(params.kbshare_id, params.kbshare_id+'/'+params.path, req, res);
+      API.handleForwardToConnectedShare(params.kbnode_id, params.kbnode_id + '/' + params.path, req, res);
     });
 
     // API proxy download
@@ -134,13 +134,9 @@ function KBNodeHub(kbnode_directory) {
       API.handleProxyDownload(params.sha1, params.sha1, req, res);
     });
 
-    console.log('aaaaaaa 132');
-
     // API upload -- upload a file to the kbucket-hub disk
     // TODO: think about what restrictions to place on this operation (aside from the per-upload limit)
     app.use('/upload', API.handleUpload);
-
-    console.log('aaaaaaa 133');
 
     // API web
     // A web interface that will expand over time
@@ -153,6 +149,7 @@ function KBNodeHub(kbnode_directory) {
     var app = m_app;
     var listen_port = m_config.getConfig('listen_port');
     m_config.setListenPort(listen_port);
+    m_http_over_websocket_server.setForwardUrl(`http://localhost:${listen_port}`);
     app.set('port', listen_port);
     if (process.env.SSL != null ? process.env.SSL : listen_port % 1000 == 443) {
       // The port number ends with 443, so we are using https
@@ -202,35 +199,34 @@ function KBNodeHub(kbnode_directory) {
     PWS.setSocket(ws);
 
     // A new share has connected (a computer running kbucket-share)
-    var kbshare_id = ''; // will be filled in below
+    var kbnode_id = ''; // will be filled in below
     var kbshare_public_key = ''; // will be filled in below
     var closed_with_error = false;
     PWS.onMessage(function(err, msg) {
       // The share has sent us a message
       if (err) {
-        console.log(`${err}. Closing websocket.`);
         PWS.close();
         return;
       }
 
       // Set the kbshare id (should be received on first message)
-      if (!kbshare_id) {
-        kbshare_id = msg.kbshare_id;
+      if (!kbnode_id) {
+        kbnode_id = msg.kbnode_id;
       }
 
-      if ((kbshare_id) && (msg.kbshare_id != kbshare_id)) {
-        // The kbshare_id was set, but this message did not match. Close the connection.
+      if ((kbnode_id) && (msg.kbnode_id != kbnode_id)) {
+        // The kbnode_id was set, but this message did not match. Close the connection.
         PWS.sendErrorAndClose('Share id does not match.');
         return;
       }
 
-      // If we are given the public key, remember it, and compare it to the kbshare_id
+      // If we are given the public key, remember it, and compare it to the kbnode_id
       if ((msg.public_key) && (!kbshare_public_key)) {
         kbshare_public_key = msg.public_key;
         var list = msg.public_key.split('\n');
         var expected_share_id = list[1].slice(0, 12);
-        if (expected_share_id != kbshare_id) {
-          PWS.sendErrorAndClose(`Share id does not match public key (${kbshare_id}<>${expected_share_id})`);
+        if (expected_share_id != kbnode_id) {
+          PWS.sendErrorAndClose(`Share id does not match public key (${kbnode_id}<>${expected_share_id})`);
           return;
         }
       }
@@ -247,25 +243,17 @@ function KBNodeHub(kbnode_directory) {
         return;
       }
 
-      if (debugging) {
-        // If DEBUG=true, let's print the message
-        if (X.command != 'set_file_info') {
-          console.log('====================================== received message');
-          console.log(JSON.stringify(msg, null, 4).slice(0, 500));
-        }
-      }
-
       if (X.command == 'register_kbucket_share') {
         // This is the first message we should get from the share
-        if (!is_valid_kbshare_id(msg.kbshare_id || '')) {
+        if (!is_valid_kbnode_id(msg.kbnode_id || '')) {
           // Not a valid share key. Close the connection.
           PWS.sendErrorAndClose('Invalid share key');
           return;
         }
-        kbshare_id = msg.kbshare_id;
+        kbnode_id = msg.kbnode_id;
         // check to see if we already have a share with this key
-        if (m_manager.connectedShareManager().getConnectedShare(kbshare_id)) {
-          // We already have a share with this kbshare_id. Close connection.
+        if (m_manager.connectedShareManager().getConnectedShare(kbnode_id)) {
+          // We already have a share with this kbnode_id. Close connection.
           PWS.sendErrorAndClose('A share with this key already exists');
           return;
         }
@@ -276,7 +264,7 @@ function KBNodeHub(kbnode_directory) {
         }
 
         // Everything looks okay, let's add this share to our share manager
-        console.log(`Registering share: ${kbshare_id}`);
+        console.info(`Registering share: ${kbnode_id}`);
         // X.info has information about the share
         // send_message_to_share (defined below) is a function that allows the share object to send messages back to the share
 
@@ -291,7 +279,7 @@ function KBNodeHub(kbnode_directory) {
           return;
         }
 
-        m_manager.connectedShareManager().addConnectedShare(kbshare_id, X.info, send_message_to_share, function(err) {
+        m_manager.connectedShareManager().addConnectedShare(kbnode_id, X.info, send_message_to_share, function(err) {
           if (err) {
             PWS.sendErrorAndClose(`Error adding share: ${err}`);
             return;
@@ -302,10 +290,10 @@ function KBNodeHub(kbnode_directory) {
         });
       } else {
         // Handle all other messages
-        var SS = m_manager.connectedShareManager().getConnectedShare(kbshare_id);
+        var SS = m_manager.connectedShareManager().getConnectedShare(kbnode_id);
         if (!SS) {
           // Somehow we can't find the share anymore. Close connection.
-          PWS.sendErrorAndClose(`Unable to find share with key=${kbshare_id}`);
+          PWS.sendErrorAndClose(`Unable to find share with key=${kbnode_id}`);
           return;
         }
         // Forward the message on to the share object
@@ -333,11 +321,10 @@ function KBNodeHub(kbnode_directory) {
 
     PWS.onClose(function() {
       // The web socket has closed
-      if (debugging) {
-        console.log(`Websocket closed: kbshare_id=${kbshare_id}`);
-      }
+      console.info(`Websocket closed: kbnode_id=${kbnode_id}`);
+
       // So we should remove the share from the manager
-      m_manager.connectedShareManager().removeConnectedShare(kbshare_id);
+      m_manager.connectedShareManager().removeConnectedShare(kbnode_id);
     });
   }
 
@@ -347,35 +334,14 @@ function KBNodeHub(kbnode_directory) {
       callback(null);
       return;
     }
-    var parent_hub_ws_url = get_websocket_url_from_http_url(parent_hub_url);
-    m_parent_hub_socket = new PoliteWebSocket({
-      wait_for_response: true,
-      enforce_remote_wait_for_response: false
-    });
-    m_parent_hub_socket.connectToRemote(parent_hub_ws_url, function(err) {
+    m_connection_to_parent_hub=new KBConnectionToParentHub(m_config);
+    m_connection_to_parent_hub.setHttpOverWebSocketServer(m_http_over_websocket_server);
+    m_connection_to_parent_hub.initialize(parent_hub_url,function(err) {
       if (err) {
         callback(err);
         return;
       }
-      register_with_parent_hub(function(err) {
-        if (err) {
-          callback(err);
-          return;
-        }
-        callback(null);
-      });
-    });
-    m_parent_hub_socket.onClose(function() {
-      console.log(`Websocket closed. Aborting.`);
-      process.exit(-1);
-    });
-    m_parent_hub_socket.onMessage(function(err, msg) {
-      if (err) {
-        console.log(`Error from parent hub: ${err}. Aborting.`);
-        process.exit(-1);
-        return;
-      }
-      process_message_from_parent_hub(msg);
+      callback(null);
     });
   }
 
@@ -394,7 +360,7 @@ function KBNodeHub(kbnode_directory) {
     callback();
   }
 
-  function sign_message(msg,private_key) {
+  function sign_message(msg, private_key) {
     const signer = crypto.createSign('sha256');
     signer.update(JSON.stringify(msg));
     signer.end();
@@ -407,11 +373,11 @@ function KBNodeHub(kbnode_directory) {
 
   function send_message_to_parent_hub(msg) {
     msg.timestamp = (new Date()) - 0;
-    msg.kbshare_id = m_config.kbNodeId();
+    msg.kbnode_id = m_config.kbNodeId();
     var signature = sign_message(msg, m_config.privateKey());
     var X = {
       message: msg,
-      kbshare_id: m_config.kbNodeId(),
+      kbnode_id: m_config.kbNodeId(),
       signature: signature
     }
     if (msg.command == 'register_kbucket_hub') {
@@ -419,24 +385,19 @@ function KBNodeHub(kbnode_directory) {
       X.public_key = m_config.publicKey();
     }
 
-    if (debugging) {
-    	console.log('------------------------------- sending message');
-      console.log(JSON.stringify(X, null, 4).slice(0, 400));
-    }
-
     m_parent_hub_socket.sendMessage(X);
   }
 
-  function verify_message(msg,hex_signature,public_key) {
-		const verifier = crypto.createVerify('sha256');
-		verifier.update(JSON.stringify(msg));
-		verifier.end();
+  function verify_message(msg, hex_signature, public_key) {
+    const verifier = crypto.createVerify('sha256');
+    verifier.update(JSON.stringify(msg));
+    verifier.end();
 
-		var signature=Buffer.from(hex_signature,'hex');
+    var signature = Buffer.from(hex_signature, 'hex');
 
-		const verified = verifier.verify(public_key, signature);
-		return verified;
-	}
+    const verified = verifier.verify(public_key, signature);
+    return verified;
+  }
 }
 
 function get_websocket_url_from_http_url(url) {
@@ -450,229 +411,15 @@ function get_websocket_url_from_http_url(url) {
   return url_ws;
 }
 
-function is_valid_kbshare_id(key) {
-	// check if a kbshare_id is valid
-	// TODO: add detail and use regexp
-	return ((8<=key.length)&&(key.length<=64));
+function is_valid_kbnode_id(key) {
+  // check if a kbnode_id is valid
+  // TODO: add detail and use regexp
+  return ((8 <= key.length) && (key.length <= 64));
 }
 
 function is_valid_sha1(sha1) {
-	// check if this is a valid SHA-1 hash
-    if (sha1.match(/\b([a-f0-9]{40})\b/))
-        return true;
-    return false;
+  // check if this is a valid SHA-1 hash
+  if (sha1.match(/\b([a-f0-9]{40})\b/))
+    return true;
+  return false;
 }
-
-/*
-
-function connect_to_parent_hub(callback) {
-      var parent_hub_url = m_config.getConfig('parent_hub_url');
-      if (!parent_hub_url) {
-        callback('No parent hub url specified.');
-        return;
-      }
-      var parent_hub_ws_url = get_websocket_url_from_http_url(parent_hub_url);
-      m_parent_hub_socket = new PoliteWebSocket({
-        wait_for_response: true,
-        enforce_remote_wait_for_response: false
-      });
-      m_parent_hub_socket.connectToRemote(url_ws, function(err) {
-        if (err) {
-          callback(err);
-          return;
-        }
-        register_with_parent_hub(function(err) {
-          if (err) {
-            callback(err);
-            return;
-          }
-          callback(null);
-        });
-      });
-      m_parent_hub_socket.onClose(function() {
-        console.log(`Websocket closed. Aborting.`);
-        process.exit(-1);
-      });
-      m_parent_hub_socket.onMessage(function(err, msg) {
-        if (err) {
-          console.log(`Error from parent hub: ${err}. Aborting.`);
-          process.exit(-1);
-          return;
-        }
-        process_message_from_parent_hub(msg);
-      });
-    }
-
-    function process_message_from_parent_hub(msg) {
-      //Finish
-    }
-
-    function register_with_parent_hub(callback) {
-      send_message_to_hub({
-        command: 'register_kbucket_hub',
-        info: {
-          hub_url: m_config.getConfig('hub_url'),
-          name: m_config.getConfig('name'),
-          scientific_research: m_config.getConfig('scientific_research'),
-          description: m_config.getConfig('description'),
-          owner: m_config.getConfig('owner'),
-          owner_email: m_config.getConfig('owner_email')
-        }
-      });
-      callback();
-    }
-
-    function get_websocket_url_from_http_url(url) {
-      var URL = require('url').URL;
-      var url_ws = new URL(url);
-      if (url_ws.protocol == 'http:')
-        url_ws.protocol = 'ws';
-      else
-        url_ws.protocol = 'wss';
-      url_ws = url_ws.toString();
-      return url_ws;
-    }
-
-    function check_kbnode_id(req, res) {
-      var params = req.params;
-      if (params.kbnode_id != m_config.kbNodeId()) {
-        var errstr = `Incorrect kbucket share key: ${params.kbnode_id}`;
-        console.error(errstr);
-        res.status(500).send({
-          error: errstr
-        });
-        return false;
-      }
-      return true;
-    }
-
-    function handle_readdir(subdirectory, req, res) {
-      allow_cross_domain_requests(req, res);
-      if (!is_safe_path(subdirectory)) {
-        res.status(500).send({
-          error: 'Unsafe path: ' + subdirectory
-        });
-        return;
-      }
-      var path0 = require('path').join(share_directory, subdirectory);
-      fs.readdir(path0, function(err, list) {
-        if (err) {
-          res.status(500).send({
-            error: err.message
-          });
-          return;
-        }
-        var files = [],
-          dirs = [];
-        async.eachSeries(list, function(item, cb) {
-          if ((item == '.') || (item == '..') || (item == '.kbucket')) {
-            cb();
-            return;
-          }
-          fs.stat(require('path').join(path0, item), function(err0, stat0) {
-            if (err0) {
-              res.status(500).send({
-                error: `Error in stat of file ${item}: ${err0.message}`
-              });
-              return;
-            }
-            if (stat0.isFile()) {
-              files.push({
-                name: item,
-                size: stat0.size
-              });
-            } else if (stat0.isDirectory()) {
-              if (!is_excluded_directory_name(item)) {
-                dirs.push({
-                  name: item
-                });
-              }
-            }
-            cb();
-          });
-        }, function() {
-          res.json({
-            success: true,
-            files: files,
-            dirs: dirs
-          });
-        });
-      });
-    }
-
-    function handle_download(filename, req, res) {
-      allow_cross_domain_requests(req, res);
-
-      // don't worry too much because express takes care of this below (b/c we specify a root directory)
-      if (!is_safe_path(filename)) {
-        res.status(500).send({
-          error: 'Unsafe path: ' + filename
-        });
-        return;
-      }
-      var path0 = require('path').join(share_directory, filename);
-      if (!fs.existsSync(path0)) {
-        res.status(404).send('404: File Not Found');
-        return;
-      }
-      if (!fs.statSync(path0).isFile()) {
-        res.status(500).send({
-          error: 'Not a file: ' + filename
-        });
-        return;
-      }
-      res.sendFile(filename, {
-        dotfiles: 'allow',
-        root: share_directory
-      });
-    }
-
-    function is_safe_path(path) {
-      var list = path.split('/');
-      for (var i in list) {
-        var str = list[i];
-        if ((str == '~') || (str == '.') || (str == '..')) return false;
-      }
-      return true;
-    }
-
-    function get_free_port_in_range(range, callback) {
-      var findPort = require('find-port');
-      if (range.length > 2) {
-        callback('Invalid port range.');
-        return;
-      }
-      if (range.length < 1) {
-        callback('Invalid port range (*).');
-        return;
-      }
-      if (range.length == 1) {
-        range.push(range[0]);
-      }
-      range[0] = Number(range[0]);
-      range[1] = Number(range[1]);
-      findPort('127.0.0.1', range[0], range[1], function(ports) {
-        if (ports.length == 0) {
-          callback(`No free ports found in range ${range[0]}-${range[1]}`);
-          return;
-        }
-        callback(null, ports[0]);
-      });
-    }
-
-    function allow_cross_domain_requests(req, res) {
-      if (req.method == 'OPTIONS') {
-        res.set('Access-Control-Allow-Origin', '*');
-        res.set("Access-Control-Allow-Methods", "POST, GET, HEAD, OPTIONS");
-        res.set("Access-Control-Allow-Credentials", true);
-        res.set("Access-Control-Max-Age", '86400'); // 24 hours
-        res.set("Access-Control-Allow-Headers", "X-Requested-With, X-HTTP-Method-Override, Content-Type, Accept, Authorization, Range");
-        res.status(200).send();
-        return;
-      } else {
-        res.header("Access-Control-Allow-Origin", "*");
-        res.set("Access-Control-Allow-Headers", "X-Requested-With, X-HTTP-Method-Override, Content-Type, Accept, Authorization, Range");
-      }
-    }
-
-*/

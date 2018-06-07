@@ -3,14 +3,13 @@ exports.KBNodeShare = KBNodeShare;
 const async = require('async');
 const express = require('express');
 const findPort = require('find-port');
-const crypto = require('crypto');
 const fs = require('fs');
 const request = require('request');
 
 const KBNodeConfig = require(__dirname + '/kbnodeconfig.js').KBNodeConfig;
-const PoliteWebSocket = require(__dirname + '/politewebsocket.js').PoliteWebSocket;
 const KBNodeShareIndexer = require(__dirname + '/kbnodeshareindexer.js').KBNodeShareIndexer;
 const HttpOverWebSocketServer = require(__dirname + '/httpoverwebsocket.js').HttpOverWebSocketServer;
+const KBConnectionToParentHub = require(__dirname + '/kbconnectiontoparenthub.js').KBConnectionToParentHub;
 
 // TODO: think of a better default range
 const KBUCKET_SHARE_PORT_RANGE = process.env.KBUCKET_SHARE_PORT_RANGE || '2000-3000';
@@ -26,8 +25,9 @@ function KBNodeShare(kbnode_directory) {
 
   var m_config = new KBNodeConfig(kbnode_directory);
   var m_app = null;
-  var m_parent_hub_socket = null;
+  //var m_parent_hub_socket = null;
   var m_http_over_websocket_server=new HttpOverWebSocketServer();
+  var m_connection_to_parent_hub=null;
   var HTTP_REQUESTS={};
 
   function initialize(opts, callback) {
@@ -53,7 +53,7 @@ function KBNodeShare(kbnode_directory) {
 
   function create_config_if_needed(callback) {
     if (!m_config.configDirExists()) {
-      console.log(`Creating new kbucket share configuration in ${m_config.kbNodeDirectory}/.kbucket ...`);
+      console.info(`Creating new kbucket share configuration in ${m_config.kbNodeDirectory}/.kbucket ...`);
       m_config.createNew('share', function(err) {
         if (err) {
           callback(err);
@@ -67,14 +67,14 @@ function KBNodeShare(kbnode_directory) {
   }
 
   function initialize_config(callback) {
-    console.log(`Initializing configuration...`);
+    console.info(`Initializing configuration...`);
     m_config.initialize(function(err) {
       if (err) {
         callback(err);
         return;
       }
       if (m_config.kbNodeType() != 'share') {
-        callback('Incorrect type for kbnode: ' + m_config.kbNodeType());
+        callback ('Incorrect type for kbnode: ' + m_config.kbNodeType());
         return;
       }
       callback(null);
@@ -122,8 +122,8 @@ function KBNodeShare(kbnode_directory) {
       m_http_over_websocket_server.setForwardUrl(`http://localhost:${listen_port}`);
       m_config.setListenPort(listen_port);
       m_app.listen(listen_port, function() {
-        console.log(`Listening on port ${listen_port}`);
-        console.log(`Web interface: ${KBUCKET_SHARE_PROTOCOL}://${KBUCKET_SHARE_HOST}:${listen_port}/${m_config.kbNodeId()}/web`)
+        console.info(`Listening on port ${listen_port}`);
+        console.info(`Web interface: ${KBUCKET_SHARE_PROTOCOL}://${KBUCKET_SHARE_HOST}:${listen_port}/${m_config.kbNodeId()}/web`)
         callback(null);
       });
     });
@@ -135,166 +135,28 @@ function KBNodeShare(kbnode_directory) {
       callback('No parent hub url specified.');
       return;
     }
-    var parent_hub_ws_url = get_websocket_url_from_http_url(parent_hub_url);
-    m_parent_hub_socket = new PoliteWebSocket({
-      wait_for_response: true,
-      enforce_remote_wait_for_response: false
-    });
-    m_parent_hub_socket.connectToRemote(parent_hub_ws_url, function(err) {
+    m_connection_to_parent_hub=new KBConnectionToParentHub(m_config);
+    m_connection_to_parent_hub.setHttpOverWebSocketServer(m_http_over_websocket_server);
+    m_connection_to_parent_hub.initialize(parent_hub_url,function(err) {
       if (err) {
         callback(err);
         return;
       }
-      register_with_parent_hub(function(err) {
-        if (err) {
-          callback(err);
-          return;
-        }
-        callback(null);
-      });
+      callback(null);
     });
-    m_parent_hub_socket.onClose(function() {
-      console.log(`Websocket closed. Aborting.`);
-      process.exit(-1);
-    });
-    m_parent_hub_socket.onMessage(function(err, msg) {
-      if (err) {
-        console.log(`Error from parent hub: ${err}. Aborting.`);
-        process.exit(-1);
-        return;
-      }
-      process_message_from_parent_hub(msg);
-    });
-  }
-
-  function process_message_from_parent_hub(msg) {
-    if (debugging) {
-    	if (msg.message!='ok') {
-	      console.log('====================================== received message');
-	      console.log(JSON.stringify(msg, null, 4).slice(0, 400));
-	    }
-    }
-
-    if (msg.error) {
-      console.error(`Error from hub: ${msg.error}`);
-      return;
-    }
-
-    if (msg.message_type=='http') {
-    	m_http_over_websocket_server.processMessageFromClient(msg,send_message_to_parent_hub,function(err) {
-    		if (err) {
-    			console.error('http over websocket error: '+err+'. Closing websocket.');
-    			PWS.close();
-    		}
-    	});
-    	return;
-		}
-
-    /*
-    if (msg.command == 'http_initiate_request') {
-      if (msg.request_id in HTTP_REQUESTS) {
-        console.log(`Request with id=${msg.request_id} already exists (in http_initiate_request). Closing websocket.`);
-        PWS.close();
-        return;
-      }
-      HTTP_REQUESTS[msg.request_id] = new HttpRequest(m_app.port,function(msg_to_hub) {
-        msg_to_hub.request_id = msg.request_id;
-        send_message_to_parent_hub(msg_to_hub);
-      });
-      HTTP_REQUESTS[msg.request_id].initiateRequest(msg);
-    } else if (msg.command == 'http_write_request_data') {
-      if (!(msg.request_id in HTTP_REQUESTS)) {
-        console.log(`No request found with id=${msg.request_id} (in http_write_request_data). Closing websocket.`);
-        PWS.close();
-        return;
-      }
-      var REQ = HTTP_REQUESTS[msg.request_id];
-      var data = Buffer.from(msg.data_base64, 'base64');
-      REQ.writeRequestData(data);
-    } else if (msg.command == 'http_end_request') {
-      if (!(msg.request_id in HTTP_REQUESTS)) {
-        console.log(`No request found with id=${msg.request_id} (in http_end_request). Closing websocket.`);
-        PWS.close();
-        return;
-      }
-      var REQ = HTTP_REQUESTS[msg.request_id];
-      REQ.endRequest();
-    } else */
-    if (msg.message == 'ok') {
-      // just ok.
-    } else {
-      console.log(`Unexpected command: ${msg.command}. Closing websocket.`);
-      PWS.close();
-      return;
-    }
-  }
-
-  function register_with_parent_hub(callback) {
-  	var listen_url=m_config.listenUrl();
-    send_message_to_parent_hub({
-      command: 'register_kbucket_share',
-      info: {
-        share_url: `${listen_url}`,
-        name: m_config.getConfig('name'),
-        scientific_research: m_config.getConfig('scientific_research'),
-        description: m_config.getConfig('description'),
-        owner: m_config.getConfig('owner'),
-        owner_email: m_config.getConfig('owner_email'),
-        confirm_share: m_config.getConfig('confirm_share')
-      }
-    });
-    callback();
-  }
-
-  function sign_message(msg, private_key) {
-    const signer = crypto.createSign('sha256');
-    signer.update(JSON.stringify(msg));
-    signer.end();
-
-    const signature = signer.sign(private_key);
-    const signature_hex = signature.toString('hex');
-
-    return signature_hex;
   }
 
   function send_message_to_parent_hub(msg) {
-    msg.timestamp = (new Date()) - 0;
-    msg.kbshare_id = m_config.kbNodeId();
-    var signature = sign_message(msg, m_config.privateKey());
-    var X = {
-      message: msg,
-      kbshare_id: m_config.kbNodeId(),
-      signature: signature
+    if (!m_connection_to_parent_hub) {
+      console.error('m_connection_to_parent_hub is null. Aborting');
+      process.exit(-1);
     }
-    if (msg.command == 'register_kbucket_share') {
-      // send the public key on the first message
-      X.public_key = m_config.publicKey();
-    }
-
-    if (debugging) {
-      if ((!X.message) || (X.message.command != 'set_file_info')) {
-        console.log('------------------------------- sending message');
-        console.log(JSON.stringify(X, null, 4).slice(0, 400));
-      }
-    }
-
-    m_parent_hub_socket.sendMessage(X);
+    m_connection_to_parent_hub.sendMessage(msg);
   }
 
   function start_indexing(callback) {
     var share_indexer = new KBNodeShareIndexer(send_message_to_parent_hub, m_config);
     share_indexer.startIndexing(callback);
-  }
-
-  function get_websocket_url_from_http_url(url) {
-    var URL = require('url').URL;
-    var url_ws = new URL(url);
-    if (url_ws.protocol == 'http:')
-      url_ws.protocol = 'ws';
-    else
-      url_ws.protocol = 'wss';
-    url_ws = url_ws.toString();
-    return url_ws;
   }
 
   function check_kbnode_id(req, res) {

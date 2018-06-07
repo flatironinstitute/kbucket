@@ -77,7 +77,7 @@ function KBNodeHubApi(config,manager) {
   function handle_download(sha1, filename, req, res) {
     allow_cross_domain_requests(req, res);
     if ((req.method == 'GET') || (req.method == 'HEAD')) {
-      console.log (`download: sha1=${sha1}`)
+      console.info(`download: sha1=${sha1}`)
 
       // check whether it is a valid sha1
       if (!is_valid_sha1(sha1)) {
@@ -108,7 +108,7 @@ function KBNodeHubApi(config,manager) {
   function handle_proxy_download(sha1, filename, req, res) {
     allow_cross_domain_requests(req, res);
     if ((req.method == 'GET') || (req.method == 'HEAD')) {
-      console.log (`proxy-download: sha1=${sha1}`)
+      console.info(`proxy-download: sha1=${sha1}`)
 
       // First check whether it is a valid sha1
       if (!is_valid_sha1(sha1)) {
@@ -155,7 +155,7 @@ function KBNodeHubApi(config,manager) {
             return;
           }
           // Forward the http request to the share through the websocket in order to handle the download
-          SS.processHttpRequest(`download/${internal_find.path}`, req, res);
+          SS.processHttpRequest(`${internal_find.kbshare_id}/download/${internal_find.path}`, req, res);
         });
       }
     } else {
@@ -253,7 +253,7 @@ function KBNodeHubApi(config,manager) {
 
     if (query.resumableChunkSize >= 1 && query.resumableChunkNumber >= 1) {
       /* resumable chunk upload */
-      console.log (`Handling upload for ${name} (chunk ${query.resumableChunkNumber})`);
+      console.info(`Handling upload for ${name} (chunk ${query.resumableChunkNumber})`);
       const offset = query.resumableChunkSize * (query.resumableChunkNumber - 1);
       const output = new fs.WriteStream(file, {
         flags: fs.constants.O_WRONLY | fs.constants.O_CREAT,

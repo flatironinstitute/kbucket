@@ -31,7 +31,7 @@ function KBNodeShareIndexer(send_message_to_parent_hub, config) {
       setTimeout(function() {
         var num_after = Object.keys(queued_files_for_indexing).length;
         if ((num_before > 0) && (num_after == 0)) {
-          console.log(`Done indexing ${Object.keys(indexed_files).length} files.`);
+          console.info(`Done indexing ${Object.keys(indexed_files).length} files.`);
         }
         start_indexing_queued_files();
       }, 100);
@@ -57,7 +57,7 @@ function KBNodeShareIndexer(send_message_to_parent_hub, config) {
     var relfilepath = key;
     delete queued_files_for_indexing[key];
     if (!require('fs').existsSync(m_share_directory + '/' + relfilepath)) {
-      console.log('File no longer exists: ' + relfilepath);
+      console.info('File no longer exists: ' + relfilepath);
       send_message_to_parent_hub({
         command: 'set_file_info',
         path: relfilepath,
@@ -68,7 +68,7 @@ function KBNodeShareIndexer(send_message_to_parent_hub, config) {
       callback();
       return;
     }
-    console.log(`Computing prv for: ${relfilepath}...`);
+    console.info(`Computing prv for: ${relfilepath}...`);
     compute_prv(relfilepath, function(err, prv) {
       if (err) {
         callback(err);

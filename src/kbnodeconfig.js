@@ -47,13 +47,13 @@ function KBNodeConfig(kbnode_directory) {
   this.getConfig = function(key) {
     return get_config(key);
   };
-  this.setListenPort=function(port) {
-    m_listen_port=port;
+  this.setListenPort = function(port) {
+    m_listen_port = port;
   }
-  this.listenPort=function() {
+  this.listenPort = function() {
     return m_listen_port;
   }
-  this.listenUrl=function() {
+  this.listenUrl = function() {
     return listen_url();
   }
 
@@ -61,7 +61,7 @@ function KBNodeConfig(kbnode_directory) {
   var m_config_file_path = m_config_dir + '/kbnode.json';
   var m_kbnode_id = ''; //set by initialize
   var m_kbnode_type = ''; //set by initialize
-  var m_listen_port=0;
+  var m_listen_port = 0;
 
   function createNew(kbnode_type, callback) {
     if (!fs.existsSync(kbnode_directory)) {
@@ -79,6 +79,7 @@ function KBNodeConfig(kbnode_directory) {
     fs.mkdirSync(kbnode_directory + '/.kbucket');
     generate_pem_files_and_kbnode_id(function() {
       set_config('kbnode_type', kbnode_type);
+      callback(null);
     });
   }
 
@@ -211,14 +212,12 @@ function KBNodeConfig(kbnode_directory) {
       });
     }
 
-
     var final_answers = {};
     if (opts.auto_use_defaults) {
       var questions2 = [];
       for (var i in questions) {
         var qq = questions[i];
         if (qq.default) {
-          console.log(`Using ${qq.name}=${qq.default}`);
           set_config(qq.name, qq.default);
         } else {
           questions2.push(qq);
@@ -255,8 +254,8 @@ function KBNodeConfig(kbnode_directory) {
     if (str == 'yes') {
       return true;
     } else if (str == 'no') {
-      console.log('');
-      console.log(`KBucket should only be used to share data for scientific research purposes.`);
+      console.info('');
+      console.info(`KBucket should only be used to share data for scientific research purposes.`);
       process.exit(-1);
       //return 'kbucket should only be used to share data used for scientific research'
     } else {
@@ -301,9 +300,9 @@ function KBNodeConfig(kbnode_directory) {
   }
 
   function listen_url() {
-    var url=get_config('listen_url');
-    if (url=='.') {
-      url=`http://localhost:${m_listen_port}`;
+    var url = get_config('listen_url');
+    if (url == '.') {
+      url = `http://localhost:${m_listen_port}`;
     }
     return url;
   }
