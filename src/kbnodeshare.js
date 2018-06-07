@@ -119,8 +119,8 @@ function KBNodeShare(kbnode_directory) {
         return;
       }
       m_app.port = listen_port;
-      m_http_over_websocket_server.setForwardUrl(m_config.listenUrl());
       m_config.setListenPort(listen_port);
+      m_http_over_websocket_server.setForwardUrl(m_config.listenUrl());
       m_app.listen(listen_port, function() {
         console.info(`Listening on port ${listen_port}`);
         console.info(`Web interface: ${KBUCKET_SHARE_PROTOCOL}://${KBUCKET_SHARE_HOST}:${listen_port}/${m_config.kbNodeId()}/web`)
