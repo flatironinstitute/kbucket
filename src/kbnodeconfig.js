@@ -199,7 +199,8 @@ function KBNodeConfig(kbnode_directory) {
         type: 'input',
         name: 'parent_hub_url',
         message: 'Connect to hub:',
-        default: get_config('parent_hub_url') || 'https://kbucket.flatironinstitute.org',
+        //default: get_config('parent_hub_url') || 'https://kbucket.flatironinstitute.org',
+        default: get_config('parent_hub_url') || 'https://kbucket.org',
         validate: is_valid_url
       });
     }
@@ -222,7 +223,8 @@ function KBNodeConfig(kbnode_directory) {
         type: 'input',
         name: 'parent_hub_url',
         message: 'Parent hub url (use . for none):',
-        default: get_config('parent_hub_url') || 'https://kbucket.flatironinstitute.org',
+        //default: get_config('parent_hub_url') || 'https://kbucket.flatironinstitute.org',
+        default: get_config('parent_hub_url') || 'https://kbucket.org',
         validate: is_valid_url
       });
     }
