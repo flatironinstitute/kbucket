@@ -59,19 +59,19 @@ function PoliteWebSocket(opts) {
       }
       var msg=parse_json(message_str);
       if (!msg) {
-        call_on_message_handlers('Error parsing json of message.');
+        send_error_and_close_socket('Error parsing json of message');
         return;
       }
       m_received_response_since_last_message=true;
       m_sent_message_since_last_response=false;
-      call_on_message_handlers(null,msg);
+      call_on_message_handlers(msg);
       check_send_queued_message();
     });
   }
 
-  function call_on_message_handlers(err,msg) {
+  function call_on_message_handlers(msg) {
     for (var i in m_on_message_handlers) {
-      m_on_message_handlers[i](err,msg);
+      m_on_message_handlers[i](msg);
     }
   }
 

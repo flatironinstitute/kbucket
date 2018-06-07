@@ -11,6 +11,8 @@ const KBucketHubManager = require(__dirname + '/kbuckethubmanager.js').KBucketHu
 const HttpOverWebSocketServer = require(__dirname + '/httpoverwebsocket.js').HttpOverWebSocketServer;
 const PoliteWebSocket = require(__dirname + '/politewebsocket.js').PoliteWebSocket;
 const KBConnectionToParentHub = require(__dirname + '/kbconnectiontoparenthub.js').KBConnectionToParentHub;
+const KBConnectionToChildNode = require(__dirname + '/kbconnectiontochildnode.js').KBConnectionToChildNode;
+
 
 var debugging = true;
 
@@ -25,8 +27,8 @@ function KBNodeHub(kbnode_directory) {
   // Encapsulate some functionality in a manager
   var m_manager = new KBucketHubManager(m_config);
 
-  var m_http_over_websocket_server=new HttpOverWebSocketServer();
-  var m_connection_to_parent_hub=null;
+  var m_http_over_websocket_server = new HttpOverWebSocketServer();
+  var m_connection_to_parent_hub = null;
 
   var API = new KBNodeHubApi(m_config, m_manager);
 
@@ -105,31 +107,44 @@ function KBNodeHub(kbnode_directory) {
 
     // API download (direct from kbucket hub)
     // Used internally -- will be obfuscated in the future -- do not use directly
-    app.use('/download/:sha1/:filename(*)', function(req, res) {
+    app.use('/:code/download/:sha1/:filename(*)', function(req, res) {
+      if (!check_code(req, res)) return;
       // Note: filename is just for convenience, not actually used
       var params = req.params;
       API.handleDownload(params.sha1, params.filename, req, res);
     });
-    app.use('/download/:sha1', function(req, res) {
+    app.use('/:code/download/:sha1', function(req, res) {
+      if (!check_code(req, res)) return;
       var params = req.params;
       API.handleDownload(params.sha1, params.sha1, req, res);
     });
 
     // API Forward http request to a kbucket share
     // Used internally -- will be obfuscated in the future -- do not use directly
-    app.use('/share/:kbnode_id/:path(*)', function(req, res) {
+    app.use('/:code/share/:kbnode_id/:path(*)', function(req, res) {
+      if (!check_code(req, res)) return;
       var params = req.params;
       API.handleForwardToConnectedShare(params.kbnode_id, params.kbnode_id + '/' + params.path, req, res);
     });
 
+    // API Forward http request to a child hub
+    // Used internally -- will be obfuscated in the future -- do not use directly
+    app.use('/:code/hub/:kbnode_id/:path(*)', function(req, res) {
+      if (!check_code(req, res)) return;
+      var params = req.params;
+      API.handleForwardToConnectedChildHub(params.kbnode_id, params.path, req, res);
+    });
+
     // API proxy download
     // Used internally -- will be obfuscated in the future -- do not use directly
-    app.use('/proxy-download/:sha1/:filename(*)', function(req, res) {
+    app.use('/:code/proxy-download/:sha1/:filename(*)', function(req, res) {
+      if (!check_code(req, res)) return;
       // Note: filename is just for convenience, not actually used
       var params = req.params;
       API.handleProxyDownload(params.sha1, params.filename, req, res);
     });
-    app.use('/proxy-download/:sha1', function(req, res) {
+    app.use('/:code/proxy-download/:sha1', function(req, res) {
+      if (!check_code(req, res)) return;
       var params = req.params;
       API.handleProxyDownload(params.sha1, params.sha1, req, res);
     });
@@ -143,6 +158,19 @@ function KBNodeHub(kbnode_directory) {
     app.use('/web', express.static(__dirname + '/web'));
 
     start_http_server_2(callback);
+  }
+
+  function check_code(req, res) {
+    var params = req.params;
+    if (params.code != m_config.kbNodeId()) {
+      var errstr = `Incorrect code: ${params.code}`;
+      console.error(errstr);
+      res.status(500).send({
+        error: errstr
+      });
+      return false;
+    }
+    return true;
   }
 
   function start_http_server_2(callback) {
@@ -198,194 +226,66 @@ function KBNodeHub(kbnode_directory) {
     });
     PWS.setSocket(ws);
 
-    // A new share has connected (a computer running kbucket-share)
-    var kbnode_id = ''; // will be filled in below
-    var kbshare_public_key = ''; // will be filled in below
-    var closed_with_error = false;
-    PWS.onMessage(function(err, msg) {
-      // The share has sent us a message
-      if (err) {
-        PWS.close();
-        return;
-      }
-
-      // Set the kbshare id (should be received on first message)
-      if (!kbnode_id) {
-        kbnode_id = msg.kbnode_id;
-      }
-
-      if ((kbnode_id) && (msg.kbnode_id != kbnode_id)) {
-        // The kbnode_id was set, but this message did not match. Close the connection.
-        PWS.sendErrorAndClose('Share id does not match.');
-        return;
-      }
-
-      // If we are given the public key, remember it, and compare it to the kbnode_id
-      if ((msg.public_key) && (!kbshare_public_key)) {
-        kbshare_public_key = msg.public_key;
-        var list = msg.public_key.split('\n');
-        var expected_share_id = list[1].slice(0, 12);
-        if (expected_share_id != kbnode_id) {
-          PWS.sendErrorAndClose(`Share id does not match public key (${kbnode_id}<>${expected_share_id})`);
-          return;
-        }
-      }
-
-      var X = msg.message;
-      if (!X) {
-        // The message is invalid. Let's close the connection.
-        PWS.sendErrorAndClose('Invalid message.');
-        return;
-      }
-
-      if (!verify_message(X, msg.signature || '', kbshare_public_key)) {
-        PWS.sendErrorAndClose('Unable to verify message using signature');
-        return;
-      }
-
-      if (X.command == 'register_kbucket_share') {
-        // This is the first message we should get from the share
-        if (!is_valid_kbnode_id(msg.kbnode_id || '')) {
-          // Not a valid share key. Close the connection.
-          PWS.sendErrorAndClose('Invalid share key');
-          return;
-        }
-        kbnode_id = msg.kbnode_id;
-        // check to see if we already have a share with this key
-        if (m_manager.connectedShareManager().getConnectedShare(kbnode_id)) {
-          // We already have a share with this kbnode_id. Close connection.
-          PWS.sendErrorAndClose('A share with this key already exists');
-          return;
-        }
-
-        if (!X.info) {
-          PWS.sendErrorAndClose('No info field found in message');
-          return;
-        }
+    var CC = new KBConnectionToChildNode();
+    CC.setWebSocket(PWS);
+    CC.onRegistered(function() {
+      if (CC.childNodeType() == 'share') {
 
         // Everything looks okay, let's add this share to our share manager
-        console.info(`Registering share: ${kbnode_id}`);
-        // X.info has information about the share
-        // send_message_to_share (defined below) is a function that allows the share object to send messages back to the share
+        console.info(`Registering child share: ${CC.childNodeId()}`);
 
-        // Check whether client (or user of client) can attest that the data is being shared for scientific research purposes
-        if (X.info.scientific_research != 'yes') {
-          PWS.sendErrorAndClose('KBucket should only be used to share data for scientific research purposes');
-          return;
-        }
-        // Check whether client (or user of client) agreed to share the data
-        if (X.info.confirm_share != 'yes') {
-          PWS.sendErrorAndClose('Sharing of directory has not been confirmed');
-          return;
-        }
-
-        m_manager.connectedShareManager().addConnectedShare(kbnode_id, X.info, send_message_to_share, function(err) {
+        m_manager.connectedShareManager().addConnectedShare(CC, function(err) {
           if (err) {
             PWS.sendErrorAndClose(`Error adding share: ${err}`);
             return;
           }
-          PWS.sendMessage({
-            message: 'ok'
+          // acknowledge receipt of the register message so that the child node can proceed
+          CC.sendMessage({
+            message: 'ok',
+            detail: 'registered (1)',
+            command:'1'
           });
         });
-      } else {
-        // Handle all other messages
-        var SS = m_manager.connectedShareManager().getConnectedShare(kbnode_id);
-        if (!SS) {
-          // Somehow we can't find the share anymore. Close connection.
-          PWS.sendErrorAndClose(`Unable to find share with key=${kbnode_id}`);
-          return;
-        }
-        // Forward the message on to the share object
-        SS.processMessageFromConnectedShare(X, function(err, response) {
+        //todo: how do we free up the CC object?
+      }
+      else if (CC.childNodeType() == 'hub') {
+        // Everything looks okay, let's add this share to our share manager
+        console.info(`Registering child hub: ${CC.childNodeId()}`);
+
+        m_manager.connectedChildHubManager().addConnectedChildHub(CC, function(err) {
           if (err) {
-            // We got some kind of error from the share object. So we'll close the connection.
-            PWS.sendErrorAndClose(`${err}`);
+            PWS.sendErrorAndClose(`Error adding child hub: ${err}`);
             return;
           }
-          if (response) {
-            // If we got a response, let's send it through the websocket back to the share.
-            PWS.sendMessage(response);
-          } else {
-            PWS.sendMessage({
-              message: 'ok'
-            });
-          }
+          // acknowledge receipt of the register message so that the child node can proceed
+          CC.sendMessage({
+            message: 'ok',
+            detail: 'registered (2)',
+            command:'2'
+          });
         });
       }
-    });
-
-    function send_message_to_share(msg) {
-      PWS.sendMessage(msg);
-    }
-
-    PWS.onClose(function() {
-      // The web socket has closed
-      console.info(`Websocket closed: kbnode_id=${kbnode_id}`);
-
-      // So we should remove the share from the manager
-      m_manager.connectedShareManager().removeConnectedShare(kbnode_id);
+      else {
+        PWS.sendErrorAndClose('Unexpected child node type: '+CC.childNodeType());
+      }
     });
   }
 
   function connect_to_parent_hub(callback) {
     var parent_hub_url = m_config.getConfig('parent_hub_url');
-    if ((!parent_hub_url)||(parent_hub_url=='.')) {
+    if ((!parent_hub_url) || (parent_hub_url == '.')) {
       callback(null);
       return;
     }
-    m_connection_to_parent_hub=new KBConnectionToParentHub(m_config);
+    m_connection_to_parent_hub = new KBConnectionToParentHub(m_config);
     m_connection_to_parent_hub.setHttpOverWebSocketServer(m_http_over_websocket_server);
-    m_connection_to_parent_hub.initialize(parent_hub_url,function(err) {
+    m_connection_to_parent_hub.initialize(parent_hub_url, function(err) {
       if (err) {
         callback(err);
         return;
       }
       callback(null);
     });
-  }
-
-  function register_with_parent_hub(callback) {
-    send_message_to_parent_hub({
-      command: 'register_kbucket_hub',
-      info: {
-        hub_url: `${m_config.listenUrl()}`,
-        name: m_config.getConfig('name'),
-        scientific_research: m_config.getConfig('scientific_research'),
-        description: m_config.getConfig('description'),
-        owner: m_config.getConfig('owner'),
-        owner_email: m_config.getConfig('owner_email')
-      }
-    });
-    callback();
-  }
-
-  function sign_message(msg, private_key) {
-    const signer = crypto.createSign('sha256');
-    signer.update(JSON.stringify(msg));
-    signer.end();
-
-    const signature = signer.sign(private_key);
-    const signature_hex = signature.toString('hex');
-
-    return signature_hex;
-  }
-
-  function send_message_to_parent_hub(msg) {
-    msg.timestamp = (new Date()) - 0;
-    msg.kbnode_id = m_config.kbNodeId();
-    var signature = sign_message(msg, m_config.privateKey());
-    var X = {
-      message: msg,
-      kbnode_id: m_config.kbNodeId(),
-      signature: signature
-    }
-    if (msg.command == 'register_kbucket_hub') {
-      // send the public key on the first message
-      X.public_key = m_config.publicKey();
-    }
-
-    m_parent_hub_socket.sendMessage(X);
   }
 
   function verify_message(msg, hex_signature, public_key) {

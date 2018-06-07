@@ -41,26 +41,18 @@ function KBConnectionToParentHub(config) {
       console.info(`Websocket closed. Aborting.`);
       process.exit(-1);
     });
-    m_parent_hub_socket.onMessage(function(err, msg) {
-      if (err) {
-        console.info(`Error from parent hub: ${err}. Aborting.`);
-        process.exit(-1);
-        return;
-      }
+    m_parent_hub_socket.onMessage(function(msg) {
       process_message_from_parent_hub(msg);
     });
   }
 
   function register_with_parent_hub(callback) {
     var listen_url = config.listenUrl();
-    var command;
-    if (config.kbNodeType() == 'share')
-      command = 'register_kbucket_share';
-    else
-      command = 'register_kbucket_hub';
+    var command = 'register_child_node';
     var info = {
       listen_url: `${listen_url}`,
       name: config.getConfig('name'),
+      kbnode_type: config.kbNodeType(),
       scientific_research: config.getConfig('scientific_research'),
       description: config.getConfig('description'),
       owner: config.getConfig('owner'),
@@ -96,7 +88,9 @@ function KBConnectionToParentHub(config) {
       }
       return;
     }
-    if (msg.message == 'ok') {
+    if (msg.command == 'set_top_hub_url') {
+      config.setTopHubUrl(msg.top_hub_url);
+    } else if (msg.message == 'ok') {
       // just ok.
     } else {
       console.info(`Unexpected command: ${msg.command}. Closing websocket.`);

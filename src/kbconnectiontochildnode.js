@@ -1,6 +1,7 @@
 exports.KBConnectionToChildNode = KBConnectionToChildNode;
 
 const crypto = require('crypto');
+const sha1 = require('node-sha1');
 
 function KBConnectionToChildNode(config) {
   this.setWebSocket = function(polite_web_socket) {
@@ -93,8 +94,7 @@ function KBConnectionToChildNode(config) {
     // If we are given the public key, remember it, and compare it to the kbnode_id
     if ((msg.public_key) && (!m_child_public_key)) {
       m_child_public_key = msg.public_key;
-      var list = msg.public_key.split('\n');
-      var expected_kbnode_id = list[1].slice(0, 12);
+      var expected_kbnode_id=sha1(m_child_public_key).slice(0,12);
       if (expected_kbnode_id != m_child_node_id) {
         PWS.sendErrorAndClose(`Child node id does not match public key (${m_child_node_id}<>${expected_kbnode_id})`);
         return;

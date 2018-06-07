@@ -162,7 +162,7 @@ function KBNodeShare(kbnode_directory) {
   function check_kbnode_id(req, res) {
     var params = req.params;
     if (params.kbnode_id != m_config.kbNodeId()) {
-      var errstr = `Incorrect kbucket share key: ${params.kbnode_id}`;
+      var errstr = `Incorrect kbucket kbnode_id: ${params.kbnode_id}`;
       console.error(errstr);
       res.status(500).send({
         error: errstr

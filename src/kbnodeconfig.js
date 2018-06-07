@@ -56,12 +56,27 @@ function KBNodeConfig(kbnode_directory) {
   this.listenUrl = function() {
     return listen_url();
   }
+  this.topHubUrl=function() {
+    return m_top_hub_url||listen_url();
+  }
+  this.setTopHubUrl=function(url) {
+    if (url!=m_top_hub_url) {
+      m_top_hub_url=url;
+      for (var i in m_on_top_hub_url_changed_handlers)
+        m_on_top_hub_url_changed_handlers[i]();
+    }
+  }
+  this.onTopHubUrlChanged=function(handler) {
+    m_on_top_hub_url_changed_handlers.push(handler);
+  }
 
   var m_config_dir = kbnode_directory + '/.kbucket';
   var m_config_file_path = m_config_dir + '/kbnode.json';
   var m_kbnode_id = ''; //set by initialize
   var m_kbnode_type = ''; //set by initialize
   var m_listen_port = 0;
+  var m_top_hub_url='';
+  var m_on_top_hub_url_changed_handlers=[];
 
   function createNew(kbnode_type, callback) {
     if (!fs.existsSync(kbnode_directory)) {
@@ -313,8 +328,7 @@ function KBNodeConfig(kbnode_directory) {
     var public_key = pair.public;
     write_text_file(m_config_dir + '/private.pem', private_key);
     write_text_file(m_config_dir + '/public.pem', public_key);
-    var list = public_key.split('\n');
-    var kbnode_id = list[1].slice(0, 12); //important
+    var kbnode_id = sha1(public_key).slice(0,12); //important
     set_config('kbnode_id', kbnode_id);
     callback();
   }

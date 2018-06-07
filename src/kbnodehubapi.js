@@ -1,12 +1,14 @@
 exports.KBNodeHubApi = KBNodeHubApi;
 
-const fs=require('fs');
+const fs = require('fs');
+const async = require('async');
 
-function KBNodeHubApi(config,manager) {
+function KBNodeHubApi(config, manager) {
   this.handleFind = handle_find;
   this.handleDownload = handle_download;
   this.handleProxyDownload = handle_proxy_download;
   this.handleForwardToConnectedShare = handle_forward_to_connected_share;
+  this.handleForwardToConnectedChildHub = handle_forward_to_connected_child_hub;
   this.handleUpload = handle_upload;
 
   const HUB_DIRECTORY = config.kbNodeDirectory();
@@ -54,10 +56,14 @@ function KBNodeHubApi(config,manager) {
             });
           } else {
             // The file was not found
-            res.json({
+            var ret={
               success: true,
-              found: false
-            });
+              found: false,
+            };
+            if (config.topHubUrl()!=config.listenUrl()) {
+              ret['alt_hub_url']=config.topHubUrl();
+            }
+            res.json(ret);
           }
         }
       });
@@ -68,7 +74,7 @@ function KBNodeHubApi(config,manager) {
   }
 
   /*
-  Handle API /download/:sha1/filename(*)
+  Handle API /:code/download/:sha1/filename(*)
   What it does:
   	Downloads the file (if present) from the local kbucket-hub disk
   	Used internally and should not be called directly
@@ -99,7 +105,7 @@ function KBNodeHubApi(config,manager) {
   }
 
   /*
-  Handle API /download/:sha1/filename(*)
+  Handle API /:code/proxy-download/:sha1/filename(*)
   What it does:
   	Provide a proxy (pass-through) for a file located on a connected share, via websocket
   	Used internally and should not be called directly
@@ -128,8 +134,8 @@ function KBNodeHubApi(config,manager) {
           sha1: sha1,
           filename: filename // filename is only used for constructing the urls -- not used for finding the file
         };
-        // Search for the file on all the connected shares
-        manager.connectedShareManager().findFileOnConnectedShares(opts, function(err, resp) {
+        // Search for the file on all the connected shares and connected child hubs
+        manager.findFile(opts, function(err, resp) {
           if (err) {
             // There was an unanticipated error
             res.status(500).send({
@@ -144,18 +150,45 @@ function KBNodeHubApi(config,manager) {
             });
             return;
           }
-          var internal_find = resp.internal_finds[0];
-          var SS = manager.connectedShareManager().getConnectedShare(internal_find.kbshare_id);
-          if (!SS) {
-            // We just found it... it really should still exist.
-            // Note: we may want to handle this differently... I suppose it could be that the share disappeared... then we don't want to cancel the whole thing... maybe a different share has the file
+          // we will use the first, but if that doesn't work for some reason we will also try the others
+          async.eachSeries(resp.internal_finds, function(internal_find, cb) {
+            if (internal_find.share_id) {
+              var SS = manager.connectedShareManager().getConnectedShare(internal_find.share_id);
+              if (!SS) {
+                // We just found it... it really should still exist.
+                console.warn(`Unexpected problem (1) in handle_proxy_download. share_id=${internal_find.share_id}.`);
+                cb(); //try the next one
+                return;
+              }
+              // Forward the http request to the share through the websocket in order to handle the download
+              SS.processHttpRequest(`${internal_find.share_id}/download/${internal_find.path}`, req, res);
+            } else if (internal_find.child_hub_id) {
+              var SS = manager.connectedChildHubManager().getConnectedChildHub(internal_find.child_hub_id);
+              if (!SS) {
+                // We just found it... it really should still exist.
+                console.warn(`Unexpected problem (2) in handle_proxy_download. child_hub_id=${internal_find.child_hub_id}.`);
+                cb(); //try the next one
+                return;
+              }
+              // Forward the http request to the share through the websocket in order to handle the download
+              var url0 = `${internal_find.child_hub_id}/proxy-download/${opts.sha1}`;
+              if (opts.filename)
+                url0 += '/' + opts.filename;
+              SS.processHttpRequest(url0, req, res);
+              return;
+            } else {
+              console.warn(`Unexpected problem (3) in handle_proxy_download`);
+              cb(); //try the next one.
+              return;
+            }
+          }, function() {
+            // did not find it
             res.status(500).send({
-              error: 'Unexpected problem (1) in handle_proxy_download'
+              error: `Not able to proxy the download even though we had ${resp.internal_finds.length} internal finds.`
             });
             return;
-          }
-          // Forward the http request to the share through the websocket in order to handle the download
-          SS.processHttpRequest(`${internal_find.kbshare_id}/download/${internal_find.path}`, req, res);
+          });
+
         });
       }
     } else {
@@ -165,17 +198,17 @@ function KBNodeHubApi(config,manager) {
   }
 
   /*
-  Handle API /share/:kbshare_id/:path(*)
+  Handle API /share/:kbnode_id/:path(*)
   What it does:
   	Forward arbitrary http/https requests through the websocket to the share computer (computer running kbucket-share)
-  	Note that the kbshare_id must be known to access the computer in this way
+  	Note that the kbnode_id must be known to access the computer in this way
   */
-  function handle_forward_to_connected_share(kbshare_id, path, req, res) {
+  function handle_forward_to_connected_share(kbnode_id, path, req, res) {
     allow_cross_domain_requests(req, res);
-    // find the share by kbshare_id
-    var SS = manager.connectedShareManager().getConnectedShare(kbshare_id);
+    // find the share by kbnode_id
+    var SS = manager.connectedShareManager().getConnectedShare(kbnode_id);
     if (!SS) {
-      var errstr = `Unable to find share with key=${kbshare_id}`;
+      var errstr = `Unable to find share with key=${kbnode_id}`;
       console.error(errstr);
       res.status(500).send({
         error: errstr
@@ -183,6 +216,28 @@ function KBNodeHubApi(config,manager) {
       return;
     }
     // Forward the request to the share through the websocket
+    SS.processHttpRequest(path, req, res);
+  }
+
+  /*
+  Handle API /:code/hub/:kbnode_id/:path(*)
+  What it does:
+    Forward arbitrary http/https requests through the websocket to the child hub
+    Note that the kbnode_id must be known to access the child hub in this way
+  */
+  function handle_forward_to_connected_child_hub(kbnode_id, path, req, res) {
+    allow_cross_domain_requests(req, res);
+    // find the share by kbnode_id
+    var SS = manager.connectedChildHubManager().getConnectedChildHub(kbnode_id);
+    if (!SS) {
+      var errstr = `Unable to find child hub with key=${kbnode_id}`;
+      console.error(errstr);
+      res.status(500).send({
+        error: errstr
+      })
+      return;
+    }
+    // Forward the request to the child hub through the websocket
     SS.processHttpRequest(path, req, res);
   }
 
@@ -291,8 +346,8 @@ function KBNodeHubApi(config,manager) {
 }
 
 function is_valid_sha1(sha1) {
-	// check if this is a valid SHA-1 hash
-    if (sha1.match(/\b([a-f0-9]{40})\b/))
-        return true;
-    return false;
+  // check if this is a valid SHA-1 hash
+  if (sha1.match(/\b([a-f0-9]{40})\b/))
+    return true;
+  return false;
 }
