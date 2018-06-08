@@ -35,7 +35,8 @@ if (!prv_obj) {
   process.exit(-1);
 }
 
-var KBUCKET_URL = CLP.namedParameters['kbucket_url'] || process.env.KBUCKET_URL || 'https://kbucket.org';
+var KBUCKET_URL = CLP.namedParameters['kbucket_url'] || process.env.KBUCKET_URL || 'https://kbucket.flatironinstitute.org';
+//var KBUCKET_URL = CLP.namedParameters['kbucket_url'] || process.env.KBUCKET_URL || 'https://kbucket.org';
 
 var KBC = new KBucketClient();
 KBC.setKBucketUrl(KBUCKET_URL);

@@ -13,7 +13,8 @@ function KBucketClient() {
 	this.clearCacheForFile=function(sha1) {clearCacheForFile(sha1);};
 	this.clearCache=function() {s_kbucket_client_data.infos_by_sha1={};};
 	
-	var m_kbucket_url='https://kbucket.org';
+	//var m_kbucket_url='https://kbucket.org';
+	var m_kbucket_url='https://kbucket.flatironinstitute.org';
 
 	function clearCacheForFile(sha1) {
 		if (sha1 in s_kbucket_client_data.infos_by_sha1) {
@@ -32,9 +33,9 @@ function KBucketClient() {
 				callback(null,resp);
 				return;
 			}
-			if (resp.alt_kbucket_url) {
+			if (resp.alt_hub_url) {
 				var opts2=JSON.parse(JSON.stringify(opts));
-				opts2.kbucket_url=resp.alt_kbucket_url;
+				opts2.kbucket_url=resp.alt_hub_url;
 				find_file(sha1,opts2,callback);
 				return;
 			}
@@ -61,7 +62,7 @@ function KBucketClient() {
 				return;
 			}
 			if (!obj.found) {
-				callback(null,{found:false});
+				callback(null,obj);
 				return;
 			}
 			var url='';
