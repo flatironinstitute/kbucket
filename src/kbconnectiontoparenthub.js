@@ -14,9 +14,13 @@ function KBConnectionToParentHub(config) {
   this.sendMessage = function(msg) {
     sendMessage(msg);
   }
+  this.onClose = function(handler) {
+    m_on_close_handlers.push(handler);
+  }
 
   var m_parent_hub_socket = null;
   var m_http_over_websocket_server = null;
+  var m_on_close_handlers = [];
 
   function initialize(parent_hub_url, callback) {
     var parent_hub_ws_url = get_websocket_url_from_http_url(parent_hub_url);
@@ -34,12 +38,14 @@ function KBConnectionToParentHub(config) {
           callback(err);
           return;
         }
+        m_parent_hub_socket.onClose(function() {
+		      console.info(`Websocket closed.`);
+		      for (var i in m_on_close_handlers) {
+		        m_on_close_handlers[i]();
+		      }
+		    });
         callback(null);
       });
-    });
-    m_parent_hub_socket.onClose(function() {
-      console.info(`Websocket closed. Aborting.`);
-      process.exit(-1);
     });
     m_parent_hub_socket.onMessage(function(msg) {
       process_message_from_parent_hub(msg);
@@ -69,15 +75,15 @@ function KBConnectionToParentHub(config) {
   }
 
   function process_message_from_parent_hub(msg) {
-  	/*
-  	console.log('==============================================================');
-  	console.log('==============================================================');
-  	console.log(msg);
-  	console.log('==============================================================');
-  	console.log('==============================================================');
-  	console.log('');
-  	console.log('');
-  	*/
+    /*
+    console.log('==============================================================');
+    console.log('==============================================================');
+    console.log(msg);
+    console.log('==============================================================');
+    console.log('==============================================================');
+    console.log('');
+    console.log('');
+    */
 
     if (msg.error) {
       console.error(`Error from hub: ${msg.error}`);

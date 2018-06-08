@@ -273,19 +273,52 @@ function KBNodeHub(kbnode_directory) {
   }
 
   function connect_to_parent_hub(callback) {
+    var opts={
+      retry_timeout_sec:4,
+      retry2_timeout_sec:10
+    };
+    do_connect_to_parent_hub(opts,callback);
+  }
+
+  function do_connect_to_parent_hub(opts,callback) {
     var parent_hub_url = m_config.getConfig('parent_hub_url');
     if ((!parent_hub_url) || (parent_hub_url == '.')) {
       callback(null);
       return;
     }
+    console.info('Connecting to parent hub: '+parent_hub_url);
     m_connection_to_parent_hub = new KBConnectionToParentHub(m_config);
     m_connection_to_parent_hub.setHttpOverWebSocketServer(m_http_over_websocket_server);
+    m_connection_to_parent_hub.onClose(function() {
+      m_connection_to_parent_hub=null;
+      if (opts.retry_timeout_sec) {
+        console.info(`Connection to parent hub closed. Will retry in ${opts.retry_timeout_sec} seconds...`);
+        setTimeout(function() {
+          retry_connect_to_parent_hub(opts);
+        },opts.retry_timeout_sec*1000);
+      }
+    });
     m_connection_to_parent_hub.initialize(parent_hub_url, function(err) {
       if (err) {
         callback(err);
         return;
       }
+      console.info('Connected to parent hub: '+parent_hub_url);
       callback(null);
+    });
+  }
+
+  function retry_connect_to_parent_hub(opts) {
+    do_connect_to_parent_hub(opts,function(err) {
+      if (err) {
+        console.error(err);
+        if (opts.retry2_timeout_sec) {
+          console.info(`Failed to reconnect to parent hub. Will retry in ${opts.retry2_timeout_sec} seconds...`);
+          setTimeout(function() {
+            retry_connect_to_parent_hub(opts);
+          },opts.retry2_timeout_sec*1000);
+        }
+      }
     });
   }
 

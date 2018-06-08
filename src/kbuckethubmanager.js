@@ -254,6 +254,7 @@ function KBConnectedShareManager() {
       return;
     }
     // actually remove it
+    console.info('Removing share: '+kbnode_id);
     delete m_connected_shares[kbnode_id];
   }
 
@@ -504,6 +505,7 @@ function KBConnectedChildHubManager(config) {
       return;
     }
     // actually remove it
+    console.info('Removing child hub: '+kbnode_id);
     delete m_connected_child_hubs[kbnode_id];
   }
 

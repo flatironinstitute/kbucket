@@ -35,7 +35,17 @@ function PoliteWebSocket(opts) {
       perMessageDeflate:false
     });
     m_ws.on('open',function() {
-      callback(null);
+      if (callback) {
+        callback(null);
+        callback=null;
+      }
+    });
+    m_ws.on('error',function(err) {
+      if (callback) {
+        callback('Websocket error: '+err.message);
+        callback=null;
+        return;
+      }
     });
     setup();
   }

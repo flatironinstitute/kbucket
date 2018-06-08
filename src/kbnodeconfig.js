@@ -336,7 +336,11 @@ function KBNodeConfig(kbnode_directory) {
   }
 
   function get_config(key) {
-    var config = read_json_file(m_config_file_path) || {};
+    var config = read_json_file(m_config_file_path);
+    if (!config) {
+      console.warn('Problem reading or parsing configuration file: '+m_config_file_path);
+      config={};
+    }
     return config[key];
   }
 
