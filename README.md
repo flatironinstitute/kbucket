@@ -87,7 +87,13 @@ This will create a new, tiny text file called file1.dat.prv containing the SHA-1
 kb-prv-download file1.dat.prv file1.dat
 ```
 
-Or, if the file is very large, it may be more convenient to load only portions of the file (the http/https protocol for KBucket supports the range header). Therefore our file1.dat.prv could be passed as an input to a visualizer that incrementally loads only parts of the file needed for viewing. There are many other advantages of the .prv file system for enabling web applications and data analysis on remote machines. These will be discussed elsewhere.
+Or, to locate the file without downloading:
+
+```
+kb-prv-find file1.dat.prv file1.dat
+```
+
+If the file is very large, it may be more convenient to load only portions of the file (the http/https protocol for KBucket supports the range header). Therefore our file1.dat.prv could be passed as an input to a visualizer that incrementally loads only parts of the file needed for viewing. There are many other advantages of the .prv file system for enabling web applications and data analysis on remote machines. These will be discussed elsewhere.
 
 It is also possible to create a .prvdir file encapsulating the .prv information for all the files in a particular directory.
 
