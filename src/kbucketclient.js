@@ -98,17 +98,9 @@ function KBucketClient() {
 }
 
 function http_get_json(url,callback) {
-	axios.get(url)
+	axios.get(url,{responseType:'json'})
   .then(function (response) {
-    var txt=response.data.toString('utf-8');
-    try {
-    	var obj=JSON.parse(txt);
-    }
-    catch(err) {
-    	callback('Error parsing json response.');
-    	return;
-    }
-    callback(null,obj);
+    callback(null,response.data);
   })
   .catch(function (error) {
     callback(error.message);

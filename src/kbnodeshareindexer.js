@@ -1,4 +1,6 @@
 exports.KBNodeShareIndexer = KBNodeShareIndexer;
+exports.computePrvObject = computePrvObject;
+exports.computePrvDirectoryObject = computePrvDirectoryObject;
 
 const fs = require('fs');
 const watcher = require('chokidar');
@@ -22,20 +24,20 @@ function KBNodeShareIndexer(send_message_to_parent_hub, config) {
   var indexed_files = {};
 
   index_files_in_subdirectory('', function(err) {
-      if (err) {
-        console.error(`Error indexing files: ${err}. Aborting.`);
-        process.exit(-1);
-      }
+    if (err) {
+      console.error(`Error indexing files: ${err}. Aborting.`);
+      process.exit(-1);
+    }
   });
   start_watching();
 
   function start_indexing_queued_files() {
-    m_is_indexing_queued_files=true;
+    m_is_indexing_queued_files = true;
     var num_before = Object.keys(queued_files_for_indexing).length;
     index_queued_files(function(err) {
       if (err) {
-        console.error('Error indexing queued files: '+err);
-        m_is_indexing_queued_files=false;
+        console.error('Error indexing queued files: ' + err);
+        m_is_indexing_queued_files = false;
         return;
       }
       setTimeout(function() {
@@ -73,11 +75,11 @@ function KBNodeShareIndexer(send_message_to_parent_hub, config) {
     if (!require('fs').existsSync(m_share_directory + '/' + relfilepath)) {
       console.info('File no longer exists: ' + relfilepath);
       if (!send_message_to_parent_hub({
-        command: 'set_file_info',
-        path: relfilepath,
-        prv: undefined
-      })) {
-        callback('Unable to set file info for removed file: '+relfilepath);
+          command: 'set_file_info',
+          path: relfilepath,
+          prv: undefined
+        })) {
+        callback('Unable to set file info for removed file: ' + relfilepath);
         return;
       }
       if (relfilepath in indexed_files)
@@ -92,11 +94,11 @@ function KBNodeShareIndexer(send_message_to_parent_hub, config) {
         return;
       }
       if (!send_message_to_parent_hub({
-        command: 'set_file_info',
-        path: relfilepath,
-        prv: prv
-      })) {
-        callback('Unable to set file info for: '+relfilepath);
+          command: 'set_file_info',
+          path: relfilepath,
+          prv: prv
+        })) {
+        callback('Unable to set file info for: ' + relfilepath);
       }
       indexed_files[relfilepath] = true;
       callback();
@@ -179,88 +181,20 @@ function KBNodeShareIndexer(send_message_to_parent_hub, config) {
   }
   */
 
-  function stat_file(fname) {
-    try {
-      return require('fs').statSync(fname);
-    } catch (err) {
-      return null;
-    }
-  }
-
-  function do_compute_prv(fname, callback) {
-    var stat0=stat_file(fname);
-    if (!stat0) {
-      callback('Cannot stat file: '+fname);
-      return;
-    }
-    compute_file_sha1(fname, {}, function(err, sha1) {
-      if (err) {
-        callback(err);
-        return;
-      }
-      compute_file_sha1(fname, {
-        start_byte: 0,
-        end_byte: 999
-      }, function(err, sha1_head) {
-        if (err) {
-          callback(err);
-          return;
-        }
-        var fcs = 'head1000-' + sha1_head;
-        var obj = {
-          original_checksum: sha1,
-          original_size: stat0.size,
-          original_fcs: fcs,
-          original_path: require('path').resolve(fname),
-          prv_version: '0.11'
-        };
-        callback('', obj);
-      });
-    });
-  }
-
-  function compute_file_sha1(path, opts, callback) {
-    var opts2 = {};
-    if (opts.start_byte) opts2.start = opts.start_byte;
-    if (opts.end_byte) opts2.end = opts.end_byte;
-    var stream = require('fs').createReadStream(path, opts2);
-    sha1(stream, function(err, hash) {
-      if (err) {
-        callback('Error: ' + err);
-        return;
-      }
-      callback(null, hash);
-    });
-  }
-
   function compute_prv(relpath, callback) {
     var prv_obj = config.getPrvFromCache(relpath);
     if (prv_obj) {
       callback(null, prv_obj);
       return;
     }
-    do_compute_prv(m_share_directory + '/' + relpath, function(err,obj) {
+    computePrvObject(m_share_directory + '/' + relpath, function(err, obj) {
       if (err) {
         callback(err);
         return;
       }
       config.savePrvToCache(relpath, obj);
-      callback(null,obj);
+      callback(null, obj);
     });
-  }
-
-  function is_indexable(relpath) {
-    var list = relpath.split('/');
-    for (var i = 0; i < list.length - 1; i++) {
-      if (is_excluded_directory_name(list[i]))
-        return false;
-    }
-    return true;
-  }
-
-  function is_excluded_directory_name(name) {
-    var to_exclude = ['node_modules', '.git', '.kbucket'];
-    return (to_exclude.indexOf(name) >= 0);
   }
 
   /*
@@ -297,4 +231,127 @@ function KBNodeShareIndexer(send_message_to_parent_hub, config) {
   }
   */
 
+}
+
+function stat_file(fname) {
+  try {
+    return require('fs').statSync(fname);
+  } catch (err) {
+    return null;
+  }
+}
+
+function computePrvDirectoryObject(path0, callback) {
+  var ret = {
+    files: {},
+    dirs: {}
+  };
+  fs.readdir(path0, function(err, list) {
+    if (err) {
+      callback(err.message);
+      return;
+    }
+    async.eachSeries(list, function(item, cb) {
+      if ((item == '.') || (item == '..') || (item == '.kbucket')) {
+        cb();
+        return;
+      }
+      var path1 = require('path').join(path0, item);
+      fs.stat(path1, function(err0, stat0) {
+        if (err0) {
+          callback(`Error in stat of file ${path1}: ${err0.message}`);
+          return;
+        }
+        if (stat0.isFile()) {
+          console.info(`Computing prv for ${path1} ...`);
+          computePrvObject(path1, function(err1, prv_obj1) {
+            if (err1) {
+              callback(`Error for file ${path1}: ${err1}`);
+              return;
+            }
+            ret.files[item] = prv_obj1;
+            cb();
+          })
+        } else if (stat0.isDirectory()) {
+          if (is_excluded_directory_name(item)) {
+            cb();
+            return;
+          }
+          computePrvDirectoryObject(path1, function(err1, prvdir_obj1) {
+            if (err1) {
+              callback(err1);
+              return;
+            }
+            ret.dirs[item] = prvdir_obj1;
+            cb();
+          })
+        } else {
+          callback('Error in stat object for file: ' + path1);
+          return;
+        }
+      });
+    }, function() {
+      callback(null, ret);
+    });
+  });
+}
+
+function computePrvObject(fname, callback) {
+  var stat0 = stat_file(fname);
+  if (!stat0) {
+    callback('Cannot stat file: ' + fname);
+    return;
+  }
+  compute_file_sha1(fname, {}, function(err, sha1) {
+    if (err) {
+      callback(err);
+      return;
+    }
+    compute_file_sha1(fname, {
+      start_byte: 0,
+      end_byte: 999
+    }, function(err, sha1_head) {
+      if (err) {
+        callback(err);
+        return;
+      }
+      var fcs = 'head1000-' + sha1_head;
+      var obj = {
+        original_checksum: sha1,
+        original_size: stat0.size,
+        original_fcs: fcs,
+        original_path: require('path').resolve(fname),
+        prv_version: '0.11'
+      };
+      callback('', obj);
+    });
+  });
+}
+
+function compute_file_sha1(path, opts, callback) {
+  var opts2 = {};
+  if (opts.start_byte) opts2.start = opts.start_byte;
+  if (opts.end_byte) opts2.end = opts.end_byte;
+  var stream = require('fs').createReadStream(path, opts2);
+  sha1(stream, function(err, hash) {
+    if (err) {
+      callback('Error: ' + err);
+      return;
+    }
+    callback(null, hash);
+  });
+}
+
+function is_indexable(relpath) {
+  var list = relpath.split('/');
+  for (var i = 0; i < list.length - 1; i++) {
+    if (is_excluded_directory_name(list[i]))
+      return false;
+  }
+  return true;
+}
+
+function is_excluded_directory_name(name) {
+  var to_exclude = ['node_modules', '.git', '.kbucket'];
+  return (to_exclude.indexOf(name) >= 0);
 }
