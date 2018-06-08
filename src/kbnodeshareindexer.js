@@ -3,6 +3,7 @@ exports.KBNodeShareIndexer = KBNodeShareIndexer;
 const fs = require('fs');
 const watcher = require('chokidar');
 const async = require('async');
+const sha1 = require('node-sha1');
 
 function KBNodeShareIndexer(send_message_to_parent_hub, config) {
   this.startIndexing = function(callback) {
@@ -151,10 +152,67 @@ function KBNodeShareIndexer(send_message_to_parent_hub, config) {
     });
   }
 
+  // used previously
+  /*
   function filter_file_name_for_cmd(fname) {
     fname = fname.split(' ').join('\\ ');
     fname = fname.split('$').join('\\$');
     return fname;
+  }
+  */
+
+  function stat_file(fname) {
+    try {
+      return require('fs').statSync(fname);
+    } catch (err) {
+      return null;
+    }
+  }
+
+  function do_compute_prv(fname, callback) {
+    var stat0=stat_file(fname);
+    if (!stat0) {
+      callback('Cannot stat file: '+fname);
+      return;
+    }
+    compute_file_sha1(fname, {}, function(err, sha1) {
+      if (err) {
+        callback(err);
+        return;
+      }
+      compute_file_sha1(fname, {
+        start_byte: 0,
+        end_byte: 999
+      }, function(err, sha1_head) {
+        if (err) {
+          callback(err);
+          return;
+        }
+        var fcs = 'head1000-' + sha1_head;
+        var obj = {
+          original_checksum: sha1,
+          original_size: stat0.size,
+          original_fcs: fcs,
+          original_path: require('path').resolve(fname),
+          prv_version: '0.11'
+        };
+        callback('', obj);
+      });
+    });
+  }
+
+  function compute_file_sha1(path, opts, callback) {
+    var opts2 = {};
+    if (opts.start_byte) opts2.start = opts.start_byte;
+    if (opts.end_byte) opts2.end = opts.end_byte;
+    var stream = require('fs').createReadStream(path, opts2);
+    sha1(stream, function(err, hash) {
+      if (err) {
+        callback('Error: ' + err);
+        return;
+      }
+      callback(null, hash);
+    });
   }
 
   function compute_prv(relpath, callback) {
@@ -163,63 +221,62 @@ function KBNodeShareIndexer(send_message_to_parent_hub, config) {
       callback(null, prv_obj);
       return;
     }
-    var cmd = `ml-prv-stat ${filter_file_name_for_cmd(m_share_directory+'/'+relpath)}`;
-    run_command_and_read_stdout(cmd, function(err, txt) {
+    do_compute_prv(m_share_directory + '/' + relpath, function(err,obj) {
       if (err) {
         callback(err);
         return;
       }
-      var obj = parse_json(txt.trim());
-      if (!obj) {
-        callback(`Error parsing json output in compute_prv for file: ${relpath}`);
-        return;
-      }
       config.savePrvToCache(relpath, obj);
-      callback(null, obj);
+      callback(null,obj);
     });
   }
-}
 
-function is_indexable(relpath) {
-  var list = relpath.split('/');
-  for (var i = 0; i < list.length - 1; i++) {
-    if (is_excluded_directory_name(list[i]))
-      return false;
+  function is_indexable(relpath) {
+    var list = relpath.split('/');
+    for (var i = 0; i < list.length - 1; i++) {
+      if (is_excluded_directory_name(list[i]))
+        return false;
+    }
+    return true;
   }
-  return true;
-}
 
-function is_excluded_directory_name(name) {
-  var to_exclude = ['node_modules', '.git', '.kbucket'];
-  return (to_exclude.indexOf(name) >= 0);
-}
-
-function parse_json(str) {
-  try {
-    return JSON.parse(str);
-  } catch (err) {
-    return null;
+  function is_excluded_directory_name(name) {
+    var to_exclude = ['node_modules', '.git', '.kbucket'];
+    return (to_exclude.indexOf(name) >= 0);
   }
-}
 
-function run_command_and_read_stdout(cmd, callback) {
-  var P;
-  try {
-    P = require('child_process').spawn(cmd, {
-      shell: true
+  /*
+  function parse_json(str) {
+    try {
+      return JSON.parse(str);
+    } catch (err) {
+      return null;
+    }
+  }
+  */
+
+  /*
+  function run_command_and_read_stdout(cmd, callback) {
+    var P;
+    try {
+      P = require('child_process').spawn(cmd, {
+        shell: true
+      });
+    } catch (err) {
+      callback(`Problem launching ${cmd}: ${err.message}`);
+      return;
+    }
+    var txt = '';
+    P.stdout.on('data', function(chunk) {
+      txt += chunk.toString();
     });
-  } catch (err) {
-    callback(`Problem launching ${cmd}: ${err.message}`);
-    return;
+    P.on('close', function(code) {
+      callback(null, txt);
+    });
+    P.on('error', function(err) {
+      callback(`Problem running ${cmd}: ${err.message}`);
+    })
   }
-  var txt = '';
-  P.stdout.on('data', function(chunk) {
-    txt += chunk.toString();
-  });
-  P.on('close', function(code) {
-    callback(null, txt);
-  });
-  P.on('error', function(err) {
-    callback(`Problem running ${cmd}: ${err.message}`);
-  })
+  */
+
 }
