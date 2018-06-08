@@ -233,7 +233,7 @@ function KBNodeHub(kbnode_directory) {
       if (CC.childNodeType() == 'share') {
 
         // Everything looks okay, let's add this share to our share manager
-        console.info(`Registering child share: ${CC.childNodeId()}`);
+        console.info(`Adding child share: ${CC.childNodeId()}`);
 
         m_manager.connectedShareManager().addConnectedShare(CC, function(err) {
           if (err) {
@@ -251,7 +251,7 @@ function KBNodeHub(kbnode_directory) {
       }
       else if (CC.childNodeType() == 'hub') {
         // Everything looks okay, let's add this share to our share manager
-        console.info(`Registering child hub: ${CC.childNodeId()}`);
+        console.info(`Adding child hub: ${CC.childNodeId()}`);
 
         m_manager.connectedChildHubManager().addConnectedChildHub(CC, function(err) {
           if (err) {

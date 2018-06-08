@@ -157,7 +157,7 @@ function KBNodeShare(kbnode_directory) {
       }
       console.info('Connected to parent hub: '+parent_hub_url);
       if (m_share_indexer) {
-        m_share_indexer.startIndexing(); //need to think about this...
+        m_share_indexer.restartIndexing(); //need to think about this...
       }
       callback(null);
     });

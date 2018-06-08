@@ -3,12 +3,13 @@ exports.KBucketHubManager = KBucketHubManager;
 const async = require('async')
 const fs = require('fs');
 const request = require('request');
+const loki = require('lokijs');
 
 const HttpOverWebSocketClient = require(__dirname + '/httpoverwebsocket.js').HttpOverWebSocketClient;
 
 var LIMITS = {
   max_connected_shares: 1e3,
-  max_files_per_connected_share: 30,
+  max_files_per_connected_share: 300,
   max_connected_child_hubs: 10
 };
 
@@ -254,7 +255,7 @@ function KBConnectedShareManager() {
       return;
     }
     // actually remove it
-    console.info('Removing share: '+kbnode_id);
+    console.info('Removing child share: '+kbnode_id);
     delete m_connected_shares[kbnode_id];
   }
 
@@ -336,9 +337,11 @@ function KBConnectedShare(connection_to_child_node) {
 
   var m_response_handlers = {}; // handlers corresponding to requests we have sent to the share
 
-  // TODO: the following information needs to be moved to a database (not memory)
-  var m_indexed_files_by_sha1 = {}; // the files on the share indexed by sha1
-  var m_indexed_files_by_path = {}; // the files on the share indexed by path
+  // TODO: the following information needs to be moved to a non-in-memory database
+
+  var m_db = new loki('');
+  // what do indices mean?
+  var m_files_collection = m_db.addCollection('files', { indices: ['sha1','path'] });
 
   // todo: move this http client to the connection_to_child_node and handle all http stuff there
   var m_http_over_websocket_client = new HttpOverWebSocketClient();
@@ -364,11 +367,8 @@ function KBConnectedShare(connection_to_child_node) {
       // The share is sending the information for a particular file in the share
 
       //first remove the old record from our index, if it exists
-      if (msg.path in m_indexed_files_by_path) {
-        var FF = m_indexed_files_by_path[msg.path];
-        delete m_indexed_files_by_sha1[FF.prv.original_checksum];
-        delete m_indexed_files_by_path[msg.path];
-      }
+      var files0=m_files_collection.find({path:msg.path});
+      m_files_collection.remove(files0);
 
       // now add the new one to our index if the prv is specified
       // (if the prv is not defined, then we are effectively removing this record)
@@ -380,10 +380,10 @@ function KBConnectedShare(connection_to_child_node) {
         };
 
         // add the file to our index
-        m_indexed_files_by_path[msg.path] = FF;
-        m_indexed_files_by_sha1[FF.prv.original_checksum] = FF;
+        m_files_collection.insert({path:msg.path,sha1:FF.prv.original_checksum,file:FF})
 
-        var num_files = Object.keys(m_indexed_files_by_sha1).length;
+
+        var num_files = m_files_collection.count();
         if (num_files > LIMITS.max_files_per_connected_share) {
           callback(`Exceeded maximum number of files allowed (${num_files}>${LIMITS.max_files_per_connected_share})`);
           return;
@@ -408,14 +408,15 @@ function KBConnectedShare(connection_to_child_node) {
 
   function findFile(opts, callback) {
     // Find a file on the share by looking into the index
-    if (!(opts.sha1 in m_indexed_files_by_sha1)) {
+    var file0=m_files_collection.findOne({sha1:opts.sha1});
+    if (!file0) {
       // Nope we don't have a file with this sha1
       callback(null, {
         found: false
       });
       return;
     }
-    var FF = m_indexed_files_by_sha1[opts.sha1];
+    var FF = file0.file;
     if (!FF) {
       // Not sure why this would happen
       callback(null, {

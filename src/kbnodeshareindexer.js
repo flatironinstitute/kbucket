@@ -11,6 +11,9 @@ function KBNodeShareIndexer(send_message_to_parent_hub, config) {
   this.startIndexing = function() {
     startIndexing();
   };
+  this.restartIndexing = function() {
+    restartIndexing();
+  };
 
   var m_share_directory = config.kbNodeDirectory();
   var m_is_indexing_queued_files = false;
@@ -20,15 +23,20 @@ function KBNodeShareIndexer(send_message_to_parent_hub, config) {
     start_indexing_queued_files();
   }
 
+  function restartIndexing() {
+    index_files_in_subdirectory('',function(err) {
+      if (err) {
+        console.error(`Error indexing files: ${err}. Aborting.`);
+        process.exit(-1);
+      }  
+      startIndexing();
+    });
+  }
+
   var queued_files_for_indexing = {};
   var indexed_files = {};
 
-  index_files_in_subdirectory('', function(err) {
-    if (err) {
-      console.error(`Error indexing files: ${err}. Aborting.`);
-      process.exit(-1);
-    }
-  });
+  restartIndexing();
   start_watching();
 
   function start_indexing_queued_files() {
