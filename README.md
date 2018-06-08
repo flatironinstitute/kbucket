@@ -16,7 +16,7 @@ For example, sometimes it is useful to email data to a collaborator, while other
 
 After installing kbucket on your Linux or Mac system, you can do the following:
 
-#### Sharing a directory of data with the system
+### Sharing a directory of data with the system
 
 ```
 cd /path/to/data/directory
@@ -71,7 +71,7 @@ kbucket-share . --auto
 
 This is useful if you don't want to press [enter] a bunch of times.
 
-#### Providing access to shared files
+### Providing access to shared files
 
 Once kbucket-share is running, and assuming we are connected to a hub within the KBucket network, the files in this directory can be accessed from any computer on the internet via http/https. However, one piece of information is needed in order to locate and download any particular file: the SHA-1 hash of the file. Much like a magnet link for torrent, this serves as the universal locator for that file. This file hash is contained (along with some other information) in the .prv file.
 
@@ -101,11 +101,11 @@ This creates a relatively small JSON text file that can be also be shared with c
 kb-prv-download directory.prvdir directory_copy
 ```
 
-#### What's actually happening with the data?
+### What's actually happening with the data?
 
 Are you interested to know how the data was transferred from one computer to another? Of course you are. Note that the .prv file contains no information about the computer it was created on. No ip addresses, routing information, etc. It simply contains the SHA-1 hash, the size of the file, and a couple other fields for convenience. Since we assume that the SHA-1 hash is sufficient to uniquely identify the file, that is the only piece of information needed to locate and retrieve the file content. This is useful because sometimes we need to change the names of files and directories, or move data from one computer to another, or replicate data on several servers. 
 
-#### Shares and hubs: the KBucket network
+### Shares and hubs: the KBucket network
 
 The KBucket network is organized as a collection of disjoint trees. The root node of the main tree is hosted by us (https://kbucket.flatironinstitute.org), but you can easily create your own network (disconnected from ours) with your own root node. For simplicity let's just consider it as one big connected tree for now.
 
@@ -117,8 +117,44 @@ But what if the kb-share hosting the file is behind a firewall? This is where th
 
 There is opportunity for quite a bit of optimization in this framework in terms of intelligent caching, and determining the optimal way to deliver content from one location to another. Since at this point, there is very little demand on the system, such optimizations are lower priority for the time being.
 
-#### Hosting a kb-hub
+### Hosting your own hub
 
-When creating a new
+When creating a new kb-share, one of the configuration options is to specify the URL for the parent kb-hub. By default this is the root node hosted by us. But there are several reasons why this is not ideal. First, if you are behind a firewall, then all content transferred outside of your internal network will need to pass through our hub (might become slow). Second, you may not trust the stability of our server. Third, you may share data with colleagues on a nearby or faster network. In general it does not make sense for the most kb-shares to be directly connected to the same root node. Therefore, you will probably want to direct your share to one of our many sub-kb-hubs (to be announced later), or to simply host your own.
 
-[IN PROGRESS.... to be continued]
+The first step is to determine a server that you will use to host the hub. Ideally this should be a computer with a port open to the wider internet, but this is not a strict requirement. For example, if you primarily need to share files within your own organization, then a hub within the firewall could be useful. Also, if you want to use your hub to access data from web applications, you should also get a SSL certificate for your server/hub so that you can serve content via https (web pages that are served over https can only access content from servers that are also running https).
+
+Configuring a kb-hub is very much like configuring a kb-share. First create a directory to be associated with your hub and then run
+
+```
+cd /path/to/hubdir
+kbucket-hub .
+```
+
+Again, the system will guide you through an interactive configuration, for example:
+
+```
+magland@dub:~/kbucket_hubs/hub1$ kbucket-hub .
+
+? Name for this KBucket hub: hub1
+? Are you hosting this hub for scientific research purposes (yes/no)? yes
+? Brief description of this KBucket hub: hub1
+? Owner's name (i.e., your full name): Jeremy Magland
+? Owner's email (i.e., your email): my@email.edu
+? Listen port for this hub: 3240
+? Listen url for this hub (use . for http://localhost:[port]): .
+? Parent hub url (use . for none): https://kbucket.flatironinstitute.org
+
+kbucket-hub is running http on port 3240
+Connecting to parent hub: https://kbucket.flatironinstitute.org
+Connected to parent hub: https://kbucket.flatironinstitute.org
+```
+
+Many of the fields are the same, but there are a couple of new options:
+
+**Listen port.** This is the port to listen on. For simplicity, if this port number ends with the digits 443 (e.g., 10443) then it will use the https protocol (finding the certificates in the kbucket/src/encryption directory). Otherwise it will listen using http.
+
+**Listen URL.** By default this will be `http://localhost:[listen_port]`, but if you want this hub to be accessible to the wider network, you should put in a domain name. While you could use an ip address, it is better to obtain a domain name for a hub that is made available via https to the wider internet.
+
+As mentioned above, each kb-hub can be connected to a parent hub. If you choose not to connect to a parent, then your local KBucket network will still function, but since it is not connected to the larger network, your colleages at remote locations may not be able to access your content. Therefore, it's usually a good idea to point your hub to a hub that is already part of the network.
+
+That's it! Now your hub is listening for incoming websocket connections from kb-shares or other kb-hubs. So configure your shares to point to your hub's listen URL and start sharing files.
