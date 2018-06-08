@@ -12,6 +12,7 @@
     "find-port": "^2.0.1",
     "inquirer": "^6.0.0",
     "keypair": "^1.0.1",
+    "lokijs": "^1.5.5",
     "node-sha1": "^1.0.1",
     "request": "^2.87.0",
     "user-settings": "^0.2.0",
