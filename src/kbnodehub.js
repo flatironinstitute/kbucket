@@ -210,7 +210,8 @@ function KBNodeHub(kbnode_directory) {
   function start_websocket_server(callback) {
     //initialize the WebSocket server instance
     const wss = new WebSocket.Server({
-      server: m_app.server
+      server: m_app.server,
+      rejectUnauthorized:false // See: https://stackoverflow.com/questions/14262986/node-js-hostname-ip-doesnt-match-certificates-altnames
     });
 
     wss.on('connection', (ws) => {
