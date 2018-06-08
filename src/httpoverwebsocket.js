@@ -200,6 +200,7 @@ function HttpRequest(forward_url, on_message_handler) {
       headers: msg.headers,
       followRedirect: false // important because we want the proxy server to handle it instead
     }
+    opts.headers.host=undefined; //This is important because I was having trouble with the SSL certificates getting confused
     m_request = request(opts);
     m_request.on('response', function(resp) {
       on_message_handler({

@@ -32,8 +32,7 @@ function PoliteWebSocket(opts) {
 
   function connectToRemote(url,callback) {
     m_ws = new WebSocket(url, {
-      perMessageDeflate:false,
-      rejectUnauthorized:false // see: https://stackoverflow.com/questions/14262986/node-js-hostname-ip-doesnt-match-certificates-altnames
+      perMessageDeflate:false
     });
     m_ws.on('open',function() {
       if (callback) {
