@@ -119,7 +119,7 @@ There is opportunity for quite a bit of optimization in this framework in terms 
 
 ### Hosting your own hub
 
-When creating a new kb-share, one of the configuration options is to specify the URL for the parent kb-hub. By default this is the root node hosted by us. But there are several reasons why this is not ideal. First, if you are behind a firewall, then all content transferred outside of your internal network will need to pass through our hub (might become slow). Second, you may not trust the stability of our server. Third, you may share data with colleagues on a nearby or faster network. In general it does not make sense for the most kb-shares to be directly connected to the same root node. Therefore, you will probably want to direct your share to one of our many sub-kb-hubs (to be announced later), or to simply host your own.
+When creating a new kb-share, one of the configuration options is to specify the URL for the parent kb-hub. By default this is the root node hosted by us. But there are several reasons why this is not ideal. First, if you are behind a firewall, then all content transferred outside of your internal network will need to pass through our hub (might become slow). Second, you may not trust the stability of our server. Third, you may share data with colleagues on a nearby or faster network. In general it does not make sense for the most kb-shares to be directly connected to the same root node. Therefore, you will probably want to direct your share to one of our sub-hubs (to be specified later), or to simply host your own.
 
 The first step is to determine a server that you will use to host the hub. Ideally this should be a computer with a port open to the wider internet, but this is not a strict requirement. For example, if you primarily need to share files within your own organization, then a hub within the firewall could be useful. Also, if you want to use your hub to access data from web applications, you should also get a SSL certificate for your server/hub so that you can serve content via https (web pages that are served over https can only access content from servers that are also running https).
 
@@ -149,12 +149,12 @@ Connecting to parent hub: https://kbucket.flatironinstitute.org
 Connected to parent hub: https://kbucket.flatironinstitute.org
 ```
 
-Many of the fields are the same, but there are a couple of new options:
+Many of the configuration fields are the same as for kbucket-share, but there are a couple of new options:
 
 **Listen port.** This is the port to listen on. For simplicity, if this port number ends with the digits 443 (e.g., 10443) then it will use the https protocol (finding the certificates in the kbucket/src/encryption directory). Otherwise it will listen using http.
 
 **Listen URL.** By default this will be `http://localhost:[listen_port]`, but if you want this hub to be accessible to the wider network, you should put in a domain name. While you could use an ip address, it is better to obtain a domain name for a hub that is made available via https to the wider internet.
 
-As mentioned above, each kb-hub can be connected to a parent hub. If you choose not to connect to a parent, then your local KBucket network will still function, but since it is not connected to the larger network, your colleages at remote locations may not be able to access your content. Therefore, it's usually a good idea to point your hub to a hub that is already part of the network.
+As mentioned above, each kb-hub can be connected to a parent hub. If you choose not to connect to a parent, then your local KBucket network will still function, but your colleages at remote locations may not be able to access your content. Therefore, it's usually a good idea to point your hub to a hub that is already part of the network.
 
 That's it! Now your hub is listening for incoming websocket connections from kb-shares or other kb-hubs. So configure your shares to point to your hub's listen URL and start sharing files.
