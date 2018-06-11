@@ -40,7 +40,8 @@ function KBNodeHub(kbnode_directory) {
       run_interactive_config,
       start_http_server,
       start_websocket_server,
-      connect_to_parent_hub
+      connect_to_parent_hub,
+      start_sending_node_data_to_parent
     ];
 
     async.series(steps, function() {
@@ -122,10 +123,10 @@ function KBNodeHub(kbnode_directory) {
 
     // API Forward http request to a kbucket share
     // Used internally -- will be obfuscated in the future -- do not use directly
-    app.use('/:code/share/:kbnode_id/:path(*)', function(req, res) {
+    app.use('/:code/share/:kbshare_id/:path(*)', function(req, res) {
       if (!check_code(req, res)) return;
       var params = req.params;
-      API.handleForwardToConnectedShare(params.kbnode_id, params.kbnode_id + '/' + params.path, req, res);
+      API.handleForwardToConnectedShare(params.kbshare_id, params.kbshare_id + '/' + params.path, req, res);
     });
 
     // API Forward http request to a child hub
@@ -242,9 +243,7 @@ function KBNodeHub(kbnode_directory) {
           }
           // acknowledge receipt of the register message so that the child node can proceed
           CC.sendMessage({
-            message: 'ok',
-            detail: 'registered (1)',
-            command:'1'
+            message: 'ok'
           });
         });
         //todo: how do we free up the CC object?
@@ -260,9 +259,7 @@ function KBNodeHub(kbnode_directory) {
           }
           // acknowledge receipt of the register message so that the child node can proceed
           CC.sendMessage({
-            message: 'ok',
-            detail: 'registered (2)',
-            command:'2'
+            message: 'ok'
           });
         });
       }
@@ -322,15 +319,24 @@ function KBNodeHub(kbnode_directory) {
     });
   }
 
-  function verify_message(msg, hex_signature, public_key) {
-    const verifier = crypto.createVerify('sha256');
-    verifier.update(JSON.stringify(msg));
-    verifier.end();
-
-    var signature = Buffer.from(hex_signature, 'hex');
-
-    const verified = verifier.verify(public_key, signature);
-    return verified;
+  function start_sending_node_data_to_parent() {
+    do_send_node_data_to_parent();
+    setTimeout(function() {
+      start_sending_node_data_to_parent();
+    },5000);
+  }
+  function do_send_node_data_to_parent() {
+    if (!m_connection_to_parent_hub) {
+      return;
+    }
+    var node_data={
+      descendant_nodes:{}
+    };
+    var node_data=m_manager.nodeData();
+    m_connection_to_parent_hub.sendMessage({
+      command:'report_node_data',
+      data:node_data
+    });
   }
 }
 

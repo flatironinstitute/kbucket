@@ -2,7 +2,8 @@
 
 const fs=require('fs');
 
-const KBNodeShare=require(__dirname+'/kbnodeshare.js').KBNodeShare;
+//const KBNodeShare=require(__dirname+'/kbnodeshare.js').KBNodeShare;
+const KBNode=require(__dirname+'/kbnode.js').KBNode;
 
 var CLP=new CLParams(process.argv);
 
@@ -22,7 +23,7 @@ if ('auto' in CLP.namedParameters) {
   init_opts.auto_use_defaults=true;
 }
 
-var X=new KBNodeShare(share_directory);
+var X=new KBNode(share_directory,'share');
 X.initialize(init_opts,function(err) {
 	if (err) {
 		console.error(err);

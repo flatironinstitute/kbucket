@@ -3,11 +3,9 @@ exports.KBConnectionToParentHub = KBConnectionToParentHub;
 const crypto = require('crypto');
 
 const PoliteWebSocket = require(__dirname + '/politewebsocket.js').PoliteWebSocket;
+const HttpOverWebSocketServer = require(__dirname + '/httpoverwebsocket.js').HttpOverWebSocketServer;
 
 function KBConnectionToParentHub(config) {
-  this.setHttpOverWebSocketServer = function(X) {
-    m_http_over_websocket_server = X;
-  };
   this.initialize = function(parent_hub_url, callback) {
     initialize(parent_hub_url, callback);
   }
@@ -28,6 +26,8 @@ function KBConnectionToParentHub(config) {
       wait_for_response: true,
       enforce_remote_wait_for_response: false
     });
+    m_http_over_websocket_server = new HttpOverWebSocketServer(sendMessage);
+    m_http_over_websocket_server.setForwardUrl(config.listenUrl());
     m_parent_hub_socket.connectToRemote(parent_hub_ws_url, function(err) {
       if (err) {
         callback(err);
@@ -92,7 +92,7 @@ function KBConnectionToParentHub(config) {
 
     if (msg.message_type == 'http') {
       if (m_http_over_websocket_server) {
-        m_http_over_websocket_server.processMessageFromClient(msg, sendMessage, function(err) {
+        m_http_over_websocket_server.processMessageFromClient(msg, function(err) {
           if (err) {
             console.error('http over websocket error: ' + err + '. Closing websocket.');
             m_parent_hub_socket.close();
