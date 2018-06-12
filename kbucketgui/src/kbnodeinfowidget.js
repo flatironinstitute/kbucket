@@ -1,11 +1,14 @@
 exports.KBNodeInfoWidget = KBNodeInfoWidget;
 
-function KBNodeInfoWidget(config) {
+function KBNodeInfoWidget() {
   this.element = function() {
     return m_element;
   };
   this.setKBNodeId = function(id) {
     setKBNodeId(id);
+  };
+  this.setKBHubUrl = function(url) {
+    setKBHubUrl(url);
   };
   this.setMaxWidth = function(max_width) {
     m_max_width = max_width;
@@ -19,14 +22,30 @@ function KBNodeInfoWidget(config) {
 		</span>
 	`);
 
+  var m_kbhub_url='';
   var m_kbnode_id = '';
   var m_info = null;
   var m_max_width = 500;
 
+  function setKBHubUrl(url) {
+    if (m_kbhub_url == url) return;
+    m_kbhub_url = url;
+    update_info();
+  }
+
   function setKBNodeId(id) {
     if (m_kbnode_id == id) return;
     m_kbnode_id = id;
-    var url = `${config.kbucket_hub_url}/${m_kbnode_id}/api/nodeinfo`;
+    update_info();
+  }
+
+  function update_info() {
+    m_info=null;
+    refresh();
+    if ((!m_kbnode_id)||(!m_kbhub_url)) {
+      return;
+    }
+    var url = `${m_kbhub_url}/${m_kbnode_id}/api/nodeinfo`;
     $.getJSON(url, {}, function(resp) {
       m_info = resp.info || {};
       refresh();

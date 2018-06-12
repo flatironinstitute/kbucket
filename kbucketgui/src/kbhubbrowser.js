@@ -3,15 +3,19 @@ exports.KBHubBrowser = KBHubBrowser;
 var FileBrowserWidget = require(__dirname + '/filebrowserwidget.js').FileBrowserWidget;
 var KBNodeInfoWidget = require(__dirname+'/kbnodeinfowidget.js').KBNodeInfoWidget;
 
-function KBHubBrowser(config) {
+function KBHubBrowser() {
   this.element = function() {
     return m_element;
   };
+  this.setKBHubUrl=function(url) {
+    setKBHubUrl(url);
+  }
   this.setKBHubId = function(id) {
     setKBHubId(id);
   };
 
   var m_kbhub_id = '';
+  var m_kbhub_url='';
   var m_left_panel_width = 600;
 
   var m_element = $(`
@@ -40,13 +44,20 @@ function KBHubBrowser(config) {
 	`);
 
   //var m_file_browser_widget = new FileBrowserWidget();
-  var m_info_widget = new KBNodeInfoWidget(config);
+  var m_info_widget = new KBNodeInfoWidget();
   m_info_widget.setMaxWidth(m_left_panel_width);
 
   //m_element.find('#file_browser').append(m_file_browser_widget.element());
   m_element.find('#left_panel').append(m_info_widget.element());
 
+  function setKBHubUrl(url) {
+    if (m_kbhub_url==url) return;
+    m_kbhub_url=url;
+    m_info_widget.setKBHubUrl(url);
+  }
+
   function setKBHubId(id) {
+    if (m_kbhub_id==id) return;
     m_kbhub_id = id;
     //m_file_browser_widget.setBaseUrl(`${config.kbucket_hub_url}/${m_kbhub_id}`);
     m_info_widget.setKBNodeId(id);

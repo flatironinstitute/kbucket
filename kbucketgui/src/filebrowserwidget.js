@@ -5,9 +5,9 @@ function FileBrowserWidget() {
 
 	this.element=function() {return m_element;};
 	this.on=function(name,callback) {m_element.on(name,callback);};
-	this.baseUrl=function() {return m_base_url;};
-	this.setBaseUrl=function(url) {m_base_url=url; m_current_directory=''; refresh();};
-	this.setCurrentDirectory=function(path) {m_current_directory=path; refresh();};
+	this.setKBHubUrl=function(url) {if (m_kbhub_url==url) return; m_kbhub_url=url; refresh();};
+	this.setKBShareId=function(id) {if (m_kbshare_id==id) return; m_kbshare_id=id; refresh();};
+	this.setCurrentDirectory=function(path) {if (m_current_directory==path) return; m_current_directory=path; refresh();};
 
 	var m_element=$(`
 		<span>
@@ -16,12 +16,13 @@ function FileBrowserWidget() {
 		</span>
 	`);
 	var m_files_table=m_element.find('#files_table');
-	var m_base_url='';
+	var m_kbhub_url='';
+	var m_kbshare_id='';
 	var m_current_directory='';
 
 	refresh();
 	function refresh() {
-		if (!m_base_url) {
+		if ((!m_kbshare_id)||(!m_kbhub_url)) {
 			m_element.find('#path').html('');
 			m_files_table.empty();
 			return;
@@ -31,7 +32,7 @@ function FileBrowserWidget() {
 		m_element.find('#path').append(path_element);
 		m_files_table.empty();
 		m_files_table.append(`<tr><th style="width:100px">Name</th><th>Size</th></tr>`);
-		$.getJSON(`${m_base_url}/api/readdir/${m_current_directory}`,function(resp) {
+		$.getJSON(`${m_kbhub_url}/${m_kbshare_id}/api/readdir/${m_current_directory}`,function(resp) {
 			if (resp.error) {
 				throw resp.error;
 			}
@@ -94,7 +95,7 @@ function FileBrowserWidget() {
 		link.html(file.name);
 		link.attr('target','_blank');
 		var filepath=require('path').join(m_current_directory,file.name);
-		var url=`${m_base_url}/download/${filepath}`;
+		var url=`${m_kbhub_url}/${m_kbshare_id}/download/${filepath}`;
 		link.attr('href',url);
 		row.find('#name').empty();
 		row.find('#name').append('<span class="octicon octicon-file"></span>&nbsp;');
