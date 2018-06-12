@@ -36,7 +36,6 @@ function find_lowest_accessible_hub_url(kbnode_id, callback) {
       callback(err);
       return;
     }
-    console.log(kbnode_id,info,accessible);
     if ((accessible) && (info.kbnode_type == 'hub')) {
       callback(null, info.listen_url);
       return;
@@ -71,7 +70,6 @@ function get_node_info(kbnode_id, callback) {
 }
 
 function get_json(url, callback) {
-	console.log('get_json',url);
   $.ajax({
     url: url,
     dataType: 'json',

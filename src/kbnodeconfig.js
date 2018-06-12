@@ -188,7 +188,6 @@ function KBNodeConfig(kbnode_directory) {
         choices: ['yes', 'no'],
         default: get_config('confirm_share') || 'no',
       });
-      /*
       questions.push({
         type: 'input',
         name: 'listen_url',
@@ -196,7 +195,6 @@ function KBNodeConfig(kbnode_directory) {
         default: get_config('listen_url') || '.',
         validate: is_valid_url
       });
-      */
       questions.push({
         type: 'input',
         name: 'parent_hub_url',
