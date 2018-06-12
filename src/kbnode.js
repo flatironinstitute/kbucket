@@ -330,7 +330,7 @@ function KBNode(kbnode_directory, kbnode_type) {
       description:m_config.getConfig('description'),
       owner:m_config.getConfig('owner'),
       owner_email:m_config.getConfig('owner_email'),
-      listen_url:m_config.getConfig('listen_url')||undefined
+      listen_url:m_config.listenUrl()||undefined
     };
     if ((include_parent_info)&&(m_connection_to_parent_hub)) {
       ret.parent_hub_info=m_connection_to_parent_hub.parentHubInfo();

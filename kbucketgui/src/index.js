@@ -36,6 +36,7 @@ function find_lowest_accessible_hub_url(kbnode_id, callback) {
       callback(err);
       return;
     }
+    console.log(kbnode_id,info,accessible);
     if ((accessible) && (info.kbnode_type == 'hub')) {
       callback(null, info.listen_url);
       return;
@@ -60,7 +61,7 @@ function get_node_info(kbnode_id, callback) {
       return;
     }
     //check accessible
-    get_json(resp.info.listen_url, function(err, resp2) {
+    get_json(`${resp.info.listen_url}/${kbnode_id}/api/nodeinfo`, function(err, resp2) {
       var accessible = false;
       if ((!err) && (resp2.info) && (resp2.info.kbnode_id == kbnode_id))
         accessible = true;
@@ -70,6 +71,7 @@ function get_node_info(kbnode_id, callback) {
 }
 
 function get_json(url, callback) {
+	console.log('get_json',url);
   $.ajax({
     url: url,
     dataType: 'json',
