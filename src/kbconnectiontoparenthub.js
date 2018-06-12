@@ -3,11 +3,9 @@ exports.KBConnectionToParentHub = KBConnectionToParentHub;
 const crypto = require('crypto');
 
 const PoliteWebSocket = require(__dirname + '/politewebsocket.js').PoliteWebSocket;
+const HttpOverWebSocketServer = require(__dirname + '/httpoverwebsocket.js').HttpOverWebSocketServer;
 
 function KBConnectionToParentHub(config) {
-  this.setHttpOverWebSocketServer = function(X) {
-    m_http_over_websocket_server = X;
-  };
   this.initialize = function(parent_hub_url, callback) {
     initialize(parent_hub_url, callback);
   }
@@ -17,17 +15,25 @@ function KBConnectionToParentHub(config) {
   this.onClose = function(handler) {
     m_on_close_handlers.push(handler);
   }
+  this.parentHubInfo=function() {
+  	return m_parent_hub_info;
+  }
 
   var m_parent_hub_socket = null;
   var m_http_over_websocket_server = null;
   var m_on_close_handlers = [];
+  var m_parent_hub_info=null;
+  var m_parent_hub_url='';
 
   function initialize(parent_hub_url, callback) {
+  	m_parent_hub_url=parent_hub_url;
     var parent_hub_ws_url = get_websocket_url_from_http_url(parent_hub_url);
     m_parent_hub_socket = new PoliteWebSocket({
       wait_for_response: true,
       enforce_remote_wait_for_response: false
     });
+    m_http_over_websocket_server = new HttpOverWebSocketServer(sendMessage);
+    m_http_over_websocket_server.setForwardUrl(config.listenUrl());
     m_parent_hub_socket.connectToRemote(parent_hub_ws_url, function(err) {
       if (err) {
         callback(err);
@@ -92,7 +98,7 @@ function KBConnectionToParentHub(config) {
 
     if (msg.message_type == 'http') {
       if (m_http_over_websocket_server) {
-        m_http_over_websocket_server.processMessageFromClient(msg, sendMessage, function(err) {
+        m_http_over_websocket_server.processMessageFromClient(msg, function(err) {
           if (err) {
             console.error('http over websocket error: ' + err + '. Closing websocket.');
             m_parent_hub_socket.close();
@@ -106,6 +112,13 @@ function KBConnectionToParentHub(config) {
     }
     if (msg.command == 'set_top_hub_url') {
       config.setTopHubUrl(msg.top_hub_url);
+    } else if (msg.command=='confirm_registration') {
+    	console.info(`Connected to parent hub: ${msg.info.name}`);
+    	if (m_parent_hub_url) {
+    		var web_interface_url=`https://kbucketgui.herokuapp.com/?${config.kbNodeType()}=${config.kbNodeId()}`;
+    		console.info(`Web interface: ${web_interface_url}`);
+    	}
+    	m_parent_hub_info=msg.info;
     } else if (msg.message == 'ok') {
       // just ok.
     } else {

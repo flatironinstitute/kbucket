@@ -2,10 +2,12 @@ exports.HttpOverWebSocketClient = HttpOverWebSocketClient;
 exports.HttpOverWebSocketServer = HttpOverWebSocketServer;
 
 const request = require('request');
+const EventEmitter = require('events');
+class MyEmitter extends EventEmitter {}
 
-function HttpOverWebSocketServer() {
-  this.processMessageFromClient = function(msg, message_sender, callback) {
-    return processMessageFromClient(msg, message_sender, callback);
+function HttpOverWebSocketServer(message_sender) {
+  this.processMessageFromClient = function(msg, callback) {
+    return processMessageFromClient(msg, callback);
   };
   this.setForwardUrl = function(url) {
     m_forward_url = url;
@@ -14,11 +16,11 @@ function HttpOverWebSocketServer() {
   var HTTP_REQUESTS = {};
   var m_forward_url = '';
 
-  function processMessageFromClient(msg, message_sender, callback) {
-    process_http_message(msg, message_sender, callback);
+  function processMessageFromClient(msg, callback) {
+    process_http_message(msg, callback);
   }
 
-  function process_http_message(msg, message_sender, callback) {
+  function process_http_message(msg, callback) {
     if (msg.command == 'http.initiate_request') {
       if (msg.request_id in HTTP_REQUESTS) {
         callback(`Request with id=${msg.request_id} already exists (in http.initiate_request).`);
@@ -55,13 +57,16 @@ function HttpOverWebSocketServer() {
   }
 }
 
-function HttpOverWebSocketClient() {
+function HttpOverWebSocketClient(message_sender) {
   this.processMessageFromServer = function(msg, callback) {
     return processMessageFromServer(msg, callback);
   };
-  this.handleRequest = function(path, req, res, message_sender) {
-    handleRequest(path, req, res, message_sender);
+  this.handleRequest = function(path, req, res) {
+    handleRequest(path, req, res);
   };
+  this.httpRequestJson = function(path, callback) {
+    httpRequestJson(path, callback);
+  }
 
   var m_response_handlers = {};
 
@@ -93,7 +98,49 @@ function HttpOverWebSocketClient() {
     callback(null);
   }
 
-  function handleRequest(path, req, res, message_sender) {
+  function httpRequestJson(path, callback) {
+    var req = new MyEmitter();
+    var res = new MyEmitter();
+    req.method = 'GET';
+    req.headers = {};
+    res.status = function(status_code, status_message) {
+      if (status_code!=200) {
+        respond('Error (status='+status+'): '+status_message);
+        return;
+      }
+    };
+    res.set=function() {
+      //dummy
+    };
+    var response_body='';
+    res.write=function(txt) {
+      response_body+=(txt+'');
+    }
+    res.end=function() {
+      try {
+        var obj=JSON.parse(response_body);
+        respond(null,obj);
+      }
+      catch(err) {
+        respond('Error parsing json response.');
+        return;
+      }
+    }
+
+    handleRequest(path, req, res);
+    req.emit('end');
+
+    function respond(err,obj) {
+      if (callback) {
+        var callback2=callback;
+        callback=null;
+        callback2(err,obj);
+        return;
+      }
+    }
+  }
+
+  function handleRequest(path, req, res) {
     // make a unique id for the request (will be included in all correspondence)
     var req_id = make_random_id(8);
 
@@ -200,7 +247,7 @@ function HttpRequest(forward_url, on_message_handler) {
       headers: msg.headers,
       followRedirect: false // important because we want the proxy server to handle it instead
     }
-    opts.headers.host=undefined; //This is important because I was having trouble with the SSL certificates getting confused
+    opts.headers.host = undefined; //This is important because I was having trouble with the SSL certificates getting confused
     m_request = request(opts);
     m_request.on('response', function(resp) {
       on_message_handler({

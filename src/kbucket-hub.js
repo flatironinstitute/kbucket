@@ -2,7 +2,8 @@
 
 const fs=require('fs');
 
-const KBNodeHub=require(__dirname+'/kbnodehub.js').KBNodeHub;
+//const KBNodeHub=require(__dirname+'/kbnodehub.js').KBNodeHub;
+const KBNode=require(__dirname+'/kbnode.js').KBNode;
 
 var CLP=new CLParams(process.argv);
 
@@ -22,12 +23,12 @@ if ('auto' in CLP.namedParameters) {
   init_opts.auto_use_defaults=true;
 }
 
-var X=new KBNodeHub(hub_directory);
+var X=new KBNode(hub_directory,'hub');
 X.initialize(init_opts,function(err) {
-	if (err) {
-		console.error(err);
-		process.exit(-1);
-	}
+  if (err) {
+    console.error(err);
+    process.exit(-1);
+  }
 });
 
 function CLParams(argv) {

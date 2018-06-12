@@ -100,9 +100,10 @@ function KBNodeShare(kbnode_directory) {
       handle_download(params.filename, req, res);
     });
 
-    // API web
+    // API web -- no longer served by the share
+    // 
     // don't really need to check the share key here because we won't be able to get anything except in the web/ directory
-    app.use('/:kbnode_id/web', express.static(__dirname + '/share_web'));
+    //app.use('/:kbnode_id/web', express.static(__dirname + '/share_web'));
 
     start_server(callback);
   }
@@ -155,7 +156,6 @@ function KBNodeShare(kbnode_directory) {
         callback(err);
         return;
       }
-      console.info('Connected to parent hub: '+parent_hub_url);
       if (m_share_indexer) {
         m_share_indexer.restartIndexing(); //need to think about this...
       }

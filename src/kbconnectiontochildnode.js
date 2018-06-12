@@ -14,12 +14,16 @@ function KBConnectionToChildNode(config) {
     return m_child_node_id;
   };
   this.childNodeType = function() {
-    if (!m_child_info) return '';
-    return m_child_info.kbnode_type;
+    if (!m_child_node_registration_info) return '';
+    return m_child_node_registration_info.kbnode_type;
   }
-  this.childNodeInfo = function() {
-    if (!m_child_info) return {};
-    return JSON.parse(JSON.stringify(m_child_info));
+  this.childNodeRegistrationInfo = function() {
+    if (!m_child_node_registration_info) return {};
+    return JSON.parse(JSON.stringify(m_child_node_registration_info));
+  }
+  this.childNodeData = function() {
+    if (!m_child_node_data) return {};
+    return JSON.parse(JSON.stringify(m_child_node_data));
   }
   this.onRegistered = function(handler) {
     m_on_registered_handlers.push(handler);
@@ -40,7 +44,8 @@ function KBConnectionToChildNode(config) {
   var m_child_node_socket = null;
   var m_child_node_id = null; //should be received on first message
   var m_child_public_key = null;
-  var m_child_info = null;
+  var m_child_node_registration_info = null;
+  var m_child_node_data = null;
   var m_on_error_handlers = [];
   var m_on_close_handlers = [];
   var m_on_registered_handlers = [];
@@ -94,7 +99,7 @@ function KBConnectionToChildNode(config) {
     // If we are given the public key, remember it, and compare it to the kbnode_id
     if ((msg.public_key) && (!m_child_public_key)) {
       m_child_public_key = msg.public_key;
-      var expected_kbnode_id=sha1(m_child_public_key).slice(0,12);
+      var expected_kbnode_id = sha1(m_child_public_key).slice(0, 12);
       if (expected_kbnode_id != m_child_node_id) {
         PWS.sendErrorAndClose(`Child node id does not match public key (${m_child_node_id}<>${expected_kbnode_id})`);
         return;
@@ -132,13 +137,23 @@ function KBConnectionToChildNode(config) {
         }
       }
 
-      m_child_info = X.info;
+      m_child_node_registration_info = X.info;
 
       for (var i in m_on_registered_handlers) {
         m_on_registered_handlers[i]();
       }
-
-    } else {
+    }
+    else if (X.command == 'report_node_data') {
+      if (!X.data) {
+        report_error_and_close_socket('No data field found in message');
+        return;  
+      }
+      m_child_node_data = X.data;
+      m_child_node_socket.sendMessage({
+        message:'ok'
+      });
+    }
+    else {
       // Handle all other messages
       for (var i in m_on_message_handlers) {
         m_on_message_handlers[i](X);

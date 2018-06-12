@@ -203,20 +203,30 @@ function KBNodeHubApi(config, manager) {
   	Forward arbitrary http/https requests through the websocket to the share computer (computer running kbucket-share)
   	Note that the kbnode_id must be known to access the computer in this way
   */
-  function handle_forward_to_connected_share(kbnode_id, path, req, res) {
+  function handle_forward_to_connected_share(kbshare_id, path, req, res) {
     allow_cross_domain_requests(req, res);
-    // find the share by kbnode_id
-    var SS = manager.connectedShareManager().getConnectedShare(kbnode_id);
-    if (!SS) {
-      var errstr = `Unable to find share with key=${kbnode_id}`;
+    // find the share by kbshare_id
+    var SS = manager.connectedShareManager().getConnectedShare(kbshare_id);
+    if (SS) {
+      // Forward the request to the share through the websocket
+      SS.processHttpRequest(path, req, res);  
+      return;
+    }
+
+    manager.connectedChildHubManager().findChildHubWithShare(kbshare_id,function(SS2) {
+      if (SS2) {
+        // Forward the request to the hub through the websocket
+        SS2.processHttpRequest(SS2.kbNodeId()+'/'+share+'/'+path, req, res);  
+        return;  
+      }
+
+      var errstr = `Unable to find share with key=${kbshare_id}`;
       console.error(errstr);
       res.status(500).send({
         error: errstr
-      })
-      return;
-    }
-    // Forward the request to the share through the websocket
-    SS.processHttpRequest(path, req, res);
+      })  
+    });
+    
   }
 
   /*
