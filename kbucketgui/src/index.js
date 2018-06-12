@@ -60,7 +60,9 @@ function get_node_info(kbnode_id, callback) {
       return;
     }
     //check accessible
-    get_json(`${resp.info.listen_url}/${kbnode_id}/api/nodeinfo`, function(err, resp2) {
+    var check_url=`${resp.info.listen_url}/${kbnode_id}/api/nodeinfo`;
+    console.info('Checking whether node ${kbnode_id} is accessible from this location...',check_url);
+    get_json(check_url, function(err, resp2) {
       var accessible = false;
       if ((!err) && (resp2.info) && (resp2.info.kbnode_id == kbnode_id))
         accessible = true;
