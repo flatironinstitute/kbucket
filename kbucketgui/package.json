@@ -7,7 +7,7 @@
   },
   "main": "kbucketguiserver.js",
   "scripts": {
-    "start": "nodejs kbucketguiserver.js",
+    "start": "node kbucketguiserver.js",
     "postinstall": "npm run webpack",
     "webpack": "node --use-strict node_modules/webpack/bin/webpack.js --devtool source-map --mode development",
     "test": "echo \"Error: no test specified\" && exit 1"
