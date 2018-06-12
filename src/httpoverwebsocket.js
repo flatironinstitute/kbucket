@@ -105,7 +105,7 @@ function HttpOverWebSocketClient(message_sender) {
     req.headers = {};
     res.status = function(status_code, status_message) {
       if (status_code!=200) {
-        respond('Error (status='+status+'): '+status_message);
+        respond('Error (status='+status_code+'): '+status_message);
         return;
       }
     };

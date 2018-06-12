@@ -56,6 +56,7 @@ function KBucketClient() {
 		if (opts.filename) {
 			url1+='/'+opts.filename;
 		}
+		console.log(url1);
 		http_get_json(url1,function(err,obj) {
 			if (err) {
 				callback('Error in http_get_json: '+err,null);
