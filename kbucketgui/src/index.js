@@ -3,7 +3,8 @@ var KBHubBrowser = require(__dirname + '/kbhubbrowser.js').KBHubBrowser;
 
 $(document).ready(function() {
   var config = {
-    kbucket_hub_url: 'http://localhost:3240'
+    //kbucket_hub_url: 'http://localhost:3240'
+    kbucket_hub_url: 'https://kbucket.flatironinstitute.org'
   };
   var query = parse_url_params();
   if (query.share) {
