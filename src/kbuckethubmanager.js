@@ -30,8 +30,8 @@ function KBucketHubManager(config) {
   this.nodeData = function() {
     return nodeData();
   }
-  this.routeHttpRequestToShare=function(kbshare_id,path,req,res) {
-    routeHttpRequestToShare(kbshare_id,path,req,res);
+  this.routeHttpRequestToNode=function(kbnode_id,path,req,res) {
+    routeHttpRequestToNode(kbnode_id,path,req,res);
   }
 
   // The share manager (see KBucketConnectedShareManager)
@@ -126,120 +126,6 @@ function KBucketHubManager(config) {
     });
   }
 
-  function findFileOld(opts, callback) {
-    // Find a file, either on the local kbucket-hub disk, on one of the connected shares, on the parent hub, or on one of the connected (child or parent) hubs
-    if (!is_valid_sha1(opts.sha1)) {
-      // Not a valid sha1 hash
-      callback(`Invalid sha1: ${opts.sha1}`);
-      return;
-    }
-
-    // We will fill in the following data and then use it below
-    var hub_err = null,
-      hub_resp = null;
-    var shares_err = null,
-      shares_resp = null;
-
-    async.series([
-      function(cb) {
-        // Check on the connected shares
-        find_file_on_connected_shares(opts, function(err, resp) {
-          shares_err = err; // the error
-          shares_resp = resp || {}; // the response
-          cb();
-        });
-      },
-      function(cb) {
-        find_file_on_connected_child_hubs(opts, function(err, resp) {
-          child_hubs_err = err;
-          child_hubs_resp = resp || {};
-          cb();
-        });
-      }
-    ], finalize_find_file);
-
-    function finalize_find_file() {
-      // If there was just one error, it's just a warning
-      if (hub_err) {
-        console.warn('Problem in find_file_on_this_hub: ' + hub_err);
-      }
-      if (shares_err) {
-        console.warn('Problem in find_file_on_connected_shares: ' + hub_err);
-      }
-      if (child_hubs_err) {
-        console.warn('Problem in find_file_on_connected_child_hubs: ' + child_hubs_err);
-      }
-
-      // This is the info we are going to return
-      var resp = {
-        success: true,
-        found: false,
-        urls: [],
-        internal_finds: []
-      };
-
-      var provide_proxy_url = false;
-      if ((!shares_err) && (shares_resp.found)) {
-        provide_proxy_url = true;
-        resp.found = true;
-
-        // TODO: check for size inconsistency and report a warning or something
-        resp.size = shares_resp.size;
-
-        for (var i in shares_resp.urls) {
-          resp.urls.push(shares_resp.urls[i]);
-        }
-
-        for (var i in shares_resp.internal_finds) {
-          resp.internal_finds.push(shares_resp.internal_finds[i]);
-        }
-      }
-
-      if ((!child_hubs_err) && (child_hubs_resp.found)) {
-        provide_proxy_url = true;
-        resp.found = true;
-
-        // TODO: check for size inconsistency and report a warning or something
-        resp.size = child_hubs_resp.size;
-
-        for (var i in child_hubs_resp.urls) {
-          resp.urls.push(child_hubs_resp.urls[i]);
-        }
-
-        for (var i in child_hubs_resp.internal_finds) {
-          resp.internal_finds.push(child_hubs_resp.internal_finds[i]);
-        }
-      }
-
-      if ((!hub_err) && (hub_resp.found)) {
-        resp.found = true;
-
-        // TODO: check for size inconsistency and report a warning or something
-        resp.size = hub_resp.size;
-
-        var url0 = `${config.listenUrl()}/${config.kbNodeId()}/download/${opts.sha1}`;
-        if (opts.filename) {
-          // append the filename to the url so that the downloaded file has the desired name
-          url0 += `/${opts.filename}`;
-        }
-        resp.urls.push(url0);
-      }
-
-      if (provide_proxy_url) {
-        // We also provide a proxy url in case the direct urls are not reachable
-        // for example, if the share computers are behind firewalls
-        var proxy_url = `${config.listenUrl()}/${config.kbNodeId()}/proxy-download/${opts.sha1}`;
-        if (opts.filename) {
-          // append the filename to the url so that the downloaded file has the desired name
-          proxy_url += `/${opts.filename}`;
-        }
-        resp.urls.push(proxy_url);
-      }
-      // return the results
-      callback(null, resp);
-    }
-  }
-
   function nodeData() {
     var data={
       kbnode_id:config.kbNodeId(),
@@ -328,10 +214,15 @@ function KBucketHubManager(config) {
     m_connected_child_hub_manager.findFileOnConnectedChildHubs(opts, callback);
   }
 
-  function routeHttpRequestToShare(kbshare_id,path,req,res) {
-    var SS=m_connected_share_manager.getConnectedShare(kbshare_id);
+  function routeHttpRequestToNode(kbnode_id,path,req,res) {
+    var SS=m_connected_share_manager.getConnectedShare(kbnode_id);
     if (SS) {
       SS.processHttpRequest(path,req,res);
+      return;
+    }
+    var HH=m_connected_child_hub_manager.getConnectedChildHub(kbnode_id);
+    if (HH) {
+      HH.processHttpRequest(path,req,res);
       return;
     }
     var ids=m_connected_child_hub_manager.connectedChildHubIds();
@@ -340,13 +231,13 @@ function KBucketHubManager(config) {
       var HH=m_connected_child_hub_manager.getConnectedChildHub(id);
       var data0=HH.childNodeData();
       var dn0=data0.descendant_nodes||{};
-      if (kbshare_id in dn0) {
+      if (kbnode_id in dn0) {
         HH.processHttpRequest(path,req,res);
         return;
       }
     }
     res.status(500).send({
-      error: 'Unable to locate share with id: '+kbshare_id
+      error: 'Unable to locate node with id: '+kbnode_id
     });
   }
 }
@@ -361,9 +252,6 @@ function KBConnectedShareManager() {
   }
   this.getConnectedShare = function(kbnode_id) {
     return m_connected_shares[kbnode_id] || null;
-  };
-  this.findFileOnConnectedShares = function(opts, callback) {
-    findFileOnConnectedShares(opts, callback);
   };
   this.findSharesWithFile=function(opts,callback) {
     findSharesWithFile(opts,callback);
@@ -405,57 +293,6 @@ function KBConnectedShareManager() {
     // actually remove it
     console.info('Removing child share: ' + kbnode_id);
     delete m_connected_shares[kbnode_id];
-  }
-
-  function findFileOnConnectedShares(opts, callback) {
-    // Find a file by checking all of the connected shares
-    var kbnode_ids = Object.keys(m_connected_shares); // all the share keys in this manager
-
-    // this is the stuff we will return in the callback
-    var resp = {
-      found: false, // whether the file was found
-      size: undefined, // size of the file if found
-      urls: [], // a list of direct urls (direct to the share computers)
-      internal_finds: [] // a list of objects for each find (described elsewhere)
-    };
-
-    // Loop sequentially through each share key
-    // TODO: shall we allow this to be parallel / asynchronous?
-    async.eachSeries(kbnode_ids, function(kbnode_id, cb) {
-      var SS = m_connected_shares[kbnode_id];
-      if (!SS) { //maybe it disappeared
-        cb(); // go to the next one
-        return;
-      }
-      if (resp.internal_finds.length >= 10) {
-        //don't return more than 10
-        cb(); // go to the next one
-        return;
-      }
-      // Find the file on this particular share
-      SS.findFile(opts, function(err0, resp0) {
-        if ((!err0) && (resp0.found)) {
-          // We found the file
-          resp.found = true;
-          // TODO: we should check for consistency with size, and do something if there is an inconsistency
-          resp.size = resp0.size; // record the size
-          if (resp0.url) {
-            // add the direct url (direct connection to the share computer)
-            resp.urls.push(resp0.url);
-          }
-          // keep track of the info for this find
-          // used when serving the file with the kbucket-hub acting as a proxy
-          resp.internal_finds.push({
-            share_id: kbnode_id, // the share key
-            path: resp0.path // the path of the file within the share
-          });
-        }
-        cb(); // go to the next one
-      });
-    }, function() {
-      // we checked all the shares, now return the response.
-      callback(null, resp);
-    });
   }
 
   function findSharesWithFile(opts, callback) {
@@ -645,9 +482,6 @@ function KBConnectedChildHubManager(config) {
   this.getConnectedChildHub = function(kbnode_id) {
     return m_connected_child_hubs[kbnode_id] || null;
   };
-  this.findFileOnConnectedChildHubs = function(opts, callback) {
-    findFileOnConnectedChildHubs(opts, callback);
-  };
   this.findSharesWithFile = function(opts, callback) {
     findSharesWithFile(opts, callback);
   };
@@ -709,53 +543,6 @@ function KBConnectedChildHubManager(config) {
     delete m_connected_child_hubs[kbnode_id];
   }
 
-  function findFileOnConnectedChildHubs(opts, callback) {
-    // Find a file by checking all of the connected shares
-    var kbnode_ids = Object.keys(m_connected_child_hubs); // all the share keys in this manager
-
-    // this is the stuff we will return in the callback
-    var resp = {
-      found: false, // whether the file was found
-      size: undefined, // size of the file if found
-      urls: [], // a list of urls
-      internal_finds: [] // a list of objects for each find (described elsewhere)
-    };
-
-    // Loop sequentially through each child hub id
-    // TODO: shall we allow this to be parallel / asynchronous?
-    async.eachSeries(kbnode_ids, function(kbnode_id, cb) {
-      var SS = m_connected_child_hubs[kbnode_id];
-      if (!SS) { //maybe it disappeared
-        cb(); // go to the next one
-        return;
-      }
-      if (resp.internal_finds.length >= 10) {
-        //don't return more than 10
-        cb(); // go to the next one
-        return;
-      }
-      // Find the file on this particular child hub
-      SS.findFile(opts, function(err0, resp0) {
-        if ((!err0) && (resp0.found)) {
-          // We found the file
-          resp.found = true;
-          // TODO: we should check for consistency with size, and do something if there is an inconsistency
-          resp.size = resp0.size; // record the size
-          for (var i in resp0.urls) {
-            resp.urls.push(resp0.urls[i]);
-          }
-          resp.internal_finds.push({
-            child_hub_id: kbnode_id
-          });
-        }
-        cb(); // go to the next one
-      });
-    }, function() {
-      // we checked all the child hubs, now return the response.
-      callback(null, resp);
-    });
-  }
-
   function findSharesWithFile(opts, callback) {
     // Find a file by checking all of the connected shares
     var kbnode_ids = Object.keys(m_connected_child_hubs); // all the share keys in this manager
@@ -789,9 +576,6 @@ function KBConnectedChildHub(connection_to_child_node, config) {
   // Encapsulate a single child hub
   this.processHttpRequest = function(path, req, res) {
     processHttpRequest(path, req, res);
-  };
-  this.findFile = function(opts, callback) {
-    findFile(opts, callback);
   };
   this.findSharesWithFile =function(opts,callback) {
     findSharesWithFile(opts,callback);
@@ -853,27 +637,6 @@ function KBConnectedChildHub(connection_to_child_node, config) {
     // Forward a http request through the websocket to the share computer (computer running kbucket-share)
 
     m_http_over_websocket_client.handleRequest(path, req, res);
-  }
-
-  function findFile(opts, callback) {
-    var child_node_id = connection_to_child_node.childNodeId();
-    var url = `${config.listenUrl()}/${config.kbNodeId()}/hub/${child_node_id}/find/${opts.sha1}`;
-    get_json(url, function(err, resp) {
-      if (err) {
-        callback(err);
-        return;
-      }
-      if ((resp.found)) {
-        callback(null, {
-          found: true,
-          urls: resp.urls
-        });
-      } else {
-        callback(null, {
-          found: false
-        });
-      }
-    });
   }
 
   function findSharesWithFile(opts, callback) {

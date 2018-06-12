@@ -112,6 +112,12 @@ function KBNode(kbnode_directory, kbnode_type) {
       handle_readdir(params.kbshare_id, '', req, res);
     });
 
+    // API nodeinfo
+    app.get('/:kbnode_id/api/nodeinfo', function(req, res) {
+      var params = req.params;
+      handle_nodeinfo(params.kbnode_id, req, res);
+    });
+
     // API download
     app.get('/:kbshare_id/download/:filename(*)', function(req, res) {
       var params = req.params;
@@ -198,7 +204,6 @@ function KBNode(kbnode_directory, kbnode_type) {
         callback(err);
         return;
       }
-      console.info('Connected to parent hub: ' + parent_hub_url);
       if (m_share_indexer) {
         m_share_indexer.restartIndexing(); //need to think about this...
       }
@@ -283,7 +288,8 @@ function KBNode(kbnode_directory, kbnode_type) {
           }
           // acknowledge receipt of the register message so that the child node can proceed
           CC.sendMessage({
-            message: 'ok'
+            command: 'confirm_registration',
+            info: get_nodeinfo(false)
           });
         });
         //todo: how do we free up the CC object?
@@ -298,7 +304,8 @@ function KBNode(kbnode_directory, kbnode_type) {
           }
           // acknowledge receipt of the register message so that the child node can proceed
           CC.sendMessage({
-            message: 'ok'
+            command: 'confirm_registration',
+            info: get_nodeinfo(false)
           });
         });
       } else {
@@ -307,12 +314,39 @@ function KBNode(kbnode_directory, kbnode_type) {
     });
   }
 
-  function route_http_request_to_share(kbshare_id,path,req,res) {
+  function route_http_request_to_node(kbnode_id,path,req,res) {
     if (kbnode_type!='hub') {
-      console.error('Cannot route http request if kbnode type is not hub.');
-      process.exit(-1);
+      res.status(500).send({error:'Cannot route request from share.'});
+      return;
     }
-    m_hub_manager.routeHttpRequestToShare(kbshare_id,path,req,res);
+    m_hub_manager.routeHttpRequestToNode(kbnode_id,path,req,res);
+  }
+
+  function get_nodeinfo(include_parent_info) {
+    var ret={
+      kbnode_id:m_config.kbNodeId(),
+      kbnode_type:m_config.kbNodeType(),
+      name:m_config.getConfig('name'),
+      description:m_config.getConfig('description'),
+      owner:m_config.getConfig('owner'),
+      owner_email:m_config.getConfig('owner_email'),
+    };
+    if ((include_parent_info)&&(m_connection_to_parent_hub)) {
+      ret.parent_hub_info=m_connection_to_parent_hub.parentHubInfo();
+    }
+    return ret;
+  }
+
+  function handle_nodeinfo(kbnode_id, req, res) {
+    allow_cross_domain_requests(req, res);
+    if (m_config.kbNodeId()!=kbnode_id) {
+      route_http_request_to_node(kbnode_id,`${kbnode_id}/api/nodeinfo`,req,res);
+      return;
+    }
+    res.json({
+      success:true,
+      info:get_nodeinfo(true)
+    });
   }
 
   function handle_readdir(kbshare_id, subdirectory, req, res) {
@@ -325,7 +359,7 @@ function KBNode(kbnode_directory, kbnode_type) {
     }
     if (kbnode_type == 'hub') {
       var urlpath0=`${kbshare_id}/api/readdir/${subdirectory}`;
-      route_http_request_to_share(kbshare_id, urlpath0, req, res);
+      route_http_request_to_node(kbshare_id, urlpath0, req, res);
       return;
     }
     // so, kbnode_type = 'share'
@@ -393,7 +427,7 @@ function KBNode(kbnode_directory, kbnode_type) {
     }
     if (kbnode_type == 'hub') {
       var urlpath0=`${kbshare_id}/download/${filename}`;
-      route_http_request_to_share(kbshare_id, urlpath0, req, res);
+      route_http_request_to_node(kbshare_id, urlpath0, req, res);
       return;
     }
     // so, kbnode_type = 'share'

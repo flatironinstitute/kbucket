@@ -300,7 +300,6 @@ function KBNodeHub(kbnode_directory) {
         callback(err);
         return;
       }
-      console.info('Connected to parent hub: '+parent_hub_url);
       callback(null);
     });
   }

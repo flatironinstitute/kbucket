@@ -75,7 +75,6 @@ function KBConnectionToChildNode(config) {
 
   function process_message_from_child_node(msg) {
     if (!msg.kbnode_id) {
-      console.log(msg);
       report_error_and_close_socket('kbnode_id not found in message');
       return;
     }

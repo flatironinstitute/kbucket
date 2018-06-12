@@ -156,7 +156,6 @@ function KBNodeShare(kbnode_directory) {
         callback(err);
         return;
       }
-      console.info('Connected to parent hub: '+parent_hub_url);
       if (m_share_indexer) {
         m_share_indexer.restartIndexing(); //need to think about this...
       }
