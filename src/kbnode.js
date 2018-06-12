@@ -393,10 +393,15 @@ function KBNode(kbnode_directory, kbnode_type) {
             return;
           }
           if (stat0.isFile()) {
-            files.push({
+            var file0={
               name: item,
-              size: stat0.size
-            });
+              size: stat0.size,
+            };
+            var prv0=m_share_indexer.getPrvForIndexedFile(require('path').join(subdirectory,file0.name));
+            if (prv0) {
+              file0.prv=prv0;
+            }
+            files.push(file0);
           } else if (stat0.isDirectory()) {
             if (!is_excluded_directory_name(item)) {
               dirs.push({

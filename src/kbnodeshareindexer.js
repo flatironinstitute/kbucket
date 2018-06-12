@@ -14,9 +14,17 @@ function KBNodeShareIndexer(send_message_to_parent_hub, config) {
   this.restartIndexing = function() {
     restartIndexing();
   };
+  this.getPrvForIndexedFile = function(relfilepath) {
+    if (!(relfilepath in m_indexed_files)) {
+      return null;
+    }
+    return m_indexed_files[relfilepath].prv;
+  }
 
   var m_share_directory = config.kbNodeDirectory();
   var m_is_indexing_queued_files = false;
+  var m_queued_files_for_indexing = {};
+  var m_indexed_files = {};
 
   function startIndexing() {
     if (m_is_indexing_queued_files) return;
@@ -33,15 +41,14 @@ function KBNodeShareIndexer(send_message_to_parent_hub, config) {
     });
   }
 
-  var queued_files_for_indexing = {};
-  var indexed_files = {};
+  
 
   restartIndexing();
   start_watching();
 
   function start_indexing_queued_files() {
     m_is_indexing_queued_files = true;
-    var num_before = Object.keys(queued_files_for_indexing).length;
+    var num_before = Object.keys(m_queued_files_for_indexing).length;
     index_queued_files(function(err) {
       if (err) {
         console.error('Error indexing queued files: ' + err);
@@ -49,9 +56,9 @@ function KBNodeShareIndexer(send_message_to_parent_hub, config) {
         return;
       }
       setTimeout(function() {
-        var num_after = Object.keys(queued_files_for_indexing).length;
+        var num_after = Object.keys(m_queued_files_for_indexing).length;
         if ((num_before > 0) && (num_after == 0)) {
-          console.info(`Done indexing ${Object.keys(indexed_files).length} files.`);
+          console.info(`Done indexing ${Object.keys(m_indexed_files).length} files.`);
         }
         start_indexing_queued_files();
       }, 1);
@@ -59,7 +66,7 @@ function KBNodeShareIndexer(send_message_to_parent_hub, config) {
   }
 
   function index_queued_files(callback) {
-    var keys = Object.keys(queued_files_for_indexing);
+    var keys = Object.keys(m_queued_files_for_indexing);
     async.eachSeries(keys, function(key, cb) {
       index_queued_file(key, function(err) {
         if (err) {
@@ -74,12 +81,12 @@ function KBNodeShareIndexer(send_message_to_parent_hub, config) {
   }
 
   function index_queued_file(key, callback) {
-    if (!(key in queued_files_for_indexing)) {
+    if (!(key in m_queued_files_for_indexing)) {
       callback();
       return;
     }
     var relfilepath = key;
-    delete queued_files_for_indexing[key];
+    delete m_queued_files_for_indexing[key];
     if (!require('fs').existsSync(m_share_directory + '/' + relfilepath)) {
       console.info('File no longer exists: ' + relfilepath);
       if (!send_message_to_parent_hub({
@@ -90,8 +97,8 @@ function KBNodeShareIndexer(send_message_to_parent_hub, config) {
         callback('Unable to set file info for removed file: ' + relfilepath);
         return;
       }
-      if (relfilepath in indexed_files)
-        delete indexed_files[relfilepath];
+      if (relfilepath in m_indexed_files)
+        delete m_indexed_files[relfilepath];
       callback();
       return;
     }
@@ -108,7 +115,7 @@ function KBNodeShareIndexer(send_message_to_parent_hub, config) {
         })) {
         callback('Unable to set file info for: ' + relfilepath);
       }
-      indexed_files[relfilepath] = true;
+      m_indexed_files[relfilepath] = {prv:prv};
       callback();
     });
   }
@@ -126,7 +133,7 @@ function KBNodeShareIndexer(send_message_to_parent_hub, config) {
         return;
       }
       if (is_indexable(relpath)) {
-        queued_files_for_indexing[relpath] = true;
+        m_queued_files_for_indexing[relpath] = true;
       }
     });
   }
@@ -162,7 +169,7 @@ function KBNodeShareIndexer(send_message_to_parent_hub, config) {
       }, function() {
         for (var i in relfilepaths) {
           if (is_indexable(relfilepaths[i])) {
-            queued_files_for_indexing[relfilepaths[i]] = true;
+            m_queued_files_for_indexing[relfilepaths[i]] = true;
           }
         }
         async.eachSeries(reldirpaths, function(reldirpath, cb) {

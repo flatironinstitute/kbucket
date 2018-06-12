@@ -1,5 +1,7 @@
 exports.FileBrowserWidget=FileBrowserWidget;
 
+const download=require('downloadjs');
+
 function FileBrowserWidget() {
 	var that=this;
 
@@ -31,7 +33,7 @@ function FileBrowserWidget() {
 		m_element.find('#path').empty();
 		m_element.find('#path').append(path_element);
 		m_files_table.empty();
-		m_files_table.append(`<tr><th style="width:100px">Name</th><th>Size</th></tr>`);
+		m_files_table.append(`<tr><th style="width:100px">Name</th><th>Size</th><th>PRV</th><th>SHA-1</th></tr>`);
 		$.getJSON(`${m_kbhub_url}/${m_kbshare_id}/api/readdir/${m_current_directory}`,function(resp) {
 			if (resp.error) {
 				throw resp.error;
@@ -41,6 +43,8 @@ function FileBrowserWidget() {
 				var row=$('<tr></tr>');
 				row.append('<td id=name></td>')
 				row.append('<td id=size></td>')
+				row.append('<td id=prv></td>')
+				row.append('<td id=sha1></td>')
 				row.dir=dirs[i];
 				m_files_table.append(row);
 				update_dir_row(row);
@@ -50,6 +54,8 @@ function FileBrowserWidget() {
 				var row=$('<tr></tr>');
 				row.append('<td id=name></td>')
 				row.append('<td id=size></td>')
+				row.append('<td id=prv></td>')
+				row.append('<td id=sha1></td>')
 				row.file=files[i];
 				m_files_table.append(row);
 				update_file_row(row);
@@ -88,6 +94,8 @@ function FileBrowserWidget() {
 		row.find('#name').append('<span class="octicon octicon-file-directory"></span>&nbsp;');
 		row.find('#name').append(link);
 		row.find('#size').html('.');
+		row.find('#prv').html('.');
+		row.find('#sha1').html('.');
 	}
 	function update_file_row(row) {
 		var file=row.file;
@@ -101,6 +109,23 @@ function FileBrowserWidget() {
 		row.find('#name').append('<span class="octicon octicon-file"></span>&nbsp;');
 		row.find('#name').append(link);
 		row.find('#size').html(format_file_size(file.size));
+		var sha1_elmt=$('<span>[Not yet indexed]</span>');
+		if (file.prv) {
+			var prv_link=create_prv_link(file.name,file.prv)
+			row.find('#prv').append(prv_link);
+			sha1_elmt=$(`<span>${file.prv.original_checksum}</span>`)
+			row.find('#sha1').append(sha1_elmt);
+		}
+	}
+
+	function create_prv_link(fname,prv) {
+		var elmt=$(`<a href=#>${fname}.prv</a>`);
+		elmt.attr('title',`Download ${fname}.prv`);
+		elmt.click(function() {
+			var json=JSON.stringify(prv,null,4);
+    	download(json,fname+'.prv');
+		});
+		return elmt;
 	}
 
 	function shorten_key(key,num) {
