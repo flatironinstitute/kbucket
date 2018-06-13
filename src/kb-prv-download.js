@@ -80,6 +80,7 @@ function download_file(url, opts, dest_fname) {
 
 
 
+
   function report_progress(bytes_downloaded, bytes_total) {
     var elapsed = (new Date()) - timer;
     if (elapsed < 5000) {

@@ -14,8 +14,8 @@ function KBNodeConfig(kbnode_directory) {
   this.configDirExists = function() {
     return fs.existsSync(m_config_dir);
   };
-  this.createNew = function(kbnode_type, callback) {
-    createNew(kbnode_type, callback);
+  this.createNew = function(kbnode_type, opts, callback) {
+    createNew(kbnode_type, opts, callback);
   };
   this.initialize = function(callback) {
     initialize(callback);
@@ -78,7 +78,7 @@ function KBNodeConfig(kbnode_directory) {
   var m_top_hub_url='';
   var m_on_top_hub_url_changed_handlers=[];
 
-  function createNew(kbnode_type, callback) {
+  function createNew(kbnode_type, opts, callback) {
     if (!fs.existsSync(kbnode_directory)) {
       callback('Directory does not exist: ' + kbnode_directory);
       return;
@@ -92,7 +92,7 @@ function KBNodeConfig(kbnode_directory) {
       return;
     }
     fs.mkdirSync(kbnode_directory + '/.kbucket');
-    generate_pem_files_and_kbnode_id(function() {
+    generate_pem_files_and_kbnode_id(opts,function() {
       set_config('kbnode_type', kbnode_type);
       callback(null);
     });
@@ -136,97 +136,108 @@ function KBNodeConfig(kbnode_directory) {
 
   function runInteractiveConfiguration(opts, callback) {
     var questions = [];
-    questions.push({
-      type: 'input',
-      name: 'name',
-      message: `Name for this KBucket ${m_kbnode_type}:`,
-      default: get_config('name') || require('path').basename(kbnode_directory),
-      validate: is_valid_kbnode_name
-    });
-    var str;
-    if (m_kbnode_type == 'hub') {
-      str = 'Are you hosting this hub for scientific research purposes (yes/no)?'
-    } else if (m_kbnode_type == 'share') {
-      str = 'Are sharing this data for scientific research purposes (yes/no)?'
-    } else {
-      console.error('Unexpected kbnode type: ' + m_kbnode_type);
-      process.exit(-1);
+    if (!opts.clone_only) {
+      questions.push({
+        type: 'input',
+        name: 'name',
+        message: `Name for this KBucket ${m_kbnode_type}:`,
+        default: get_config('name') || require('path').basename(kbnode_directory),
+        validate: is_valid_kbnode_name
+      });
+      var str;
+      if (m_kbnode_type == 'hub') {
+        str = 'Are you hosting this hub for scientific research purposes (yes/no)?'
+      } else if (m_kbnode_type == 'share') {
+        str = 'Are sharing this data for scientific research purposes (yes/no)?'
+      } else {
+        console.error('Unexpected kbnode type: ' + m_kbnode_type);
+        process.exit(-1);
+      }
+      questions.push({
+        type: 'input',
+        name: 'scientific_research',
+        message: str,
+        default: get_config('scientific_research') || '',
+        validate: is_valid_scientific_research
+      });
+      questions.push({
+        type: 'input',
+        name: 'description',
+        message: `Brief description of this KBucket ${m_kbnode_type}:`,
+        default: get_config('description') || '',
+        validate: is_valid_description
+      });
+      questions.push({
+        type: 'input',
+        name: 'owner',
+        message: 'Owner\'s name (i.e., your full name):',
+        default: get_config('owner') || user_settings.get('default_owner') || '',
+        validate: is_valid_owner
+      });
+      questions.push({
+        type: 'input',
+        name: 'owner_email',
+        message: 'Owner\'s email (i.e., your email):',
+        default: get_config('owner_email') || user_settings.get('default_owner_email') || '',
+        validate: is_valid_email
+      });
+      if (m_kbnode_type == 'share') {
+        questions.push({
+          type: 'list',
+          name: 'confirm_share',
+          message: `Share all data recursively contained in the directory ${kbnode_directory}? (yes/no)`,
+          choices: ['yes', 'no'],
+          default: get_config('confirm_share') || 'no',
+        });
+        questions.push({
+          type: 'input',
+          name: 'listen_url',
+          message: `Listen url for this hub (use . for http://localhost:[port]):`,
+          default: get_config('listen_url') || '.',
+          validate: is_valid_url
+        });
+        questions.push({
+          type: 'input',
+          name: 'parent_hub_url',
+          message: 'Connect to hub:',
+          default: get_config('parent_hub_url') || 'https://kbucket.flatironinstitute.org',
+          //default: get_config('parent_hub_url') || 'https://kbucket.org',
+          validate: is_valid_url
+        });
+      }
+      if (m_kbnode_type == 'hub') {
+        questions.push({
+          type: 'input',
+          name: 'listen_port',
+          message: `Listen port for this hub:`,
+          default: get_config('listen_port') || 3240,
+          validate: is_valid_port
+        });
+        questions.push({
+          type: 'input',
+          name: 'listen_url',
+          message: `Listen url for this hub (use . for http://localhost:[port]):`,
+          default: get_config('listen_url') || '.',
+          validate: is_valid_url
+        });
+        questions.push({
+          type: 'input',
+          name: 'parent_hub_url',
+          message: 'Parent hub url (use . for none):',
+          default: get_config('parent_hub_url') || 'https://kbucket.flatironinstitute.org',
+          //default: get_config('parent_hub_url') || 'https://kbucket.org',
+          validate: is_valid_url
+        });
+      }
     }
-    questions.push({
-      type: 'input',
-      name: 'scientific_research',
-      message: str,
-      default: get_config('scientific_research') || '',
-      validate: is_valid_scientific_research
-    });
-    questions.push({
-      type: 'input',
-      name: 'description',
-      message: `Brief description of this KBucket ${m_kbnode_type}:`,
-      default: get_config('description') || '',
-      validate: is_valid_description
-    });
-    questions.push({
-      type: 'input',
-      name: 'owner',
-      message: 'Owner\'s name (i.e., your full name):',
-      default: get_config('owner') || user_settings.get('default_owner') || '',
-      validate: is_valid_owner
-    });
-    questions.push({
-      type: 'input',
-      name: 'owner_email',
-      message: 'Owner\'s email (i.e., your email):',
-      default: get_config('owner_email') || user_settings.get('default_owner_email') || '',
-      validate: is_valid_email
-    });
-    if (m_kbnode_type == 'share') {
-      questions.push({
-        type: 'list',
-        name: 'confirm_share',
-        message: `Share all data recursively contained in the directory ${kbnode_directory}? (yes/no)`,
-        choices: ['yes', 'no'],
-        default: get_config('confirm_share') || 'no',
-      });
-      questions.push({
-        type: 'input',
-        name: 'listen_url',
-        message: `Listen url for this hub (use . for http://localhost:[port]):`,
-        default: get_config('listen_url') || '.',
-        validate: is_valid_url
-      });
-      questions.push({
-        type: 'input',
-        name: 'parent_hub_url',
-        message: 'Connect to hub:',
-        default: get_config('parent_hub_url') || 'https://kbucket.flatironinstitute.org',
-        //default: get_config('parent_hub_url') || 'https://kbucket.org',
-        validate: is_valid_url
-      });
-    }
-    if (m_kbnode_type == 'hub') {
-      questions.push({
-        type: 'input',
-        name: 'listen_port',
-        message: `Listen port for this hub:`,
-        default: get_config('listen_port') || 3240,
-        validate: is_valid_port
-      });
-      questions.push({
-        type: 'input',
-        name: 'listen_url',
-        message: `Listen url for this hub (use . for http://localhost:[port]):`,
-        default: get_config('listen_url') || '.',
-        validate: is_valid_url
-      });
-      questions.push({
-        type: 'input',
-        name: 'parent_hub_url',
-        message: 'Parent hub url (use . for none):',
-        default: get_config('parent_hub_url') || 'https://kbucket.flatironinstitute.org',
-        //default: get_config('parent_hub_url') || 'https://kbucket.org',
-        validate: is_valid_url
-      });
+    else {
+      //clone only
+      set_config('readonly',true);
+      set_config('kbnode_type',opts.info.kbnode_type);
+      set_config('name',opts.info.name);
+      set_config('description',opts.info.description);
+      set_config('owner',opts.info.owner);
+      set_config('owner_email',opts.info.owner_email);
     }
 
     var final_answers = {};
@@ -324,14 +335,19 @@ function KBNodeConfig(kbnode_directory) {
     return url;
   }
 
-  function generate_pem_files_and_kbnode_id(callback) {
-    var pair = keypair();
-    var private_key = pair.private;
-    var public_key = pair.public;
-    write_text_file(m_config_dir + '/private.pem', private_key);
-    write_text_file(m_config_dir + '/public.pem', public_key);
-    var kbnode_id = sha1(public_key).slice(0,12); //important
-    set_config('kbnode_id', kbnode_id);
+  function generate_pem_files_and_kbnode_id(opts,callback) {
+    if (!opts.clone_only) {
+      var pair = keypair();
+      var private_key = pair.private;
+      var public_key = pair.public;
+      write_text_file(m_config_dir + '/private.pem', private_key);
+      write_text_file(m_config_dir + '/public.pem', public_key);
+      var kbnode_id = sha1(public_key).slice(0,12); //important
+      set_config('kbnode_id', kbnode_id);
+    }
+    else {
+      set_config('kbnode_id',opts.info.kbnode_id);
+    }
     callback();
   }
 
