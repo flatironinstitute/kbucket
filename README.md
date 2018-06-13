@@ -20,13 +20,13 @@ After installing kbucket on your Linux or Mac system, you can do the following:
 
 ```
 cd /path/to/data/directory
-kbucket-share .
+kbucket-host .
 ```
 
 You will then be prompted to interactively configure the share, as follows:
 
 ```
-magland@dub:~/kbucket_data/datasets/dataset_01$ kbucket-share .
+magland@dub:~/kbucket_data/datasets/dataset_01$ kbucket-host .
 Creating new kbucket share configuration in /home/magland/kbucket_data/datasets/dataset_01/.kbucket ...
 Initializing configuration...
 
@@ -66,14 +66,14 @@ To stop sharing the directory, simply use [ctrl]+c to cancel the process. To beg
 
 ```
 cd /path/to/data/directory
-kbucket-share . --auto
+kbucket-host . --auto
 ```
 
 This is useful if you don't want to press [enter] a bunch of times.
 
 ### Providing access to shared files
 
-Once kbucket-share is running, and assuming we are connected to a hub within the KBucket network, the files in this directory can be accessed from any computer on the internet via http/https. However, one piece of information is needed in order to locate and download any particular file: the SHA-1 hash of the file. Much like a magnet link for torrent, this serves as the universal locator for that file. This file hash is contained (along with some other information) in the .prv file.
+Once kbucket-host is running, and assuming we are connected to a hub within the KBucket network, the files in this directory can be accessed from any computer on the internet via http/https. However, one piece of information is needed in order to locate and download any particular file: the SHA-1 hash of the file. Much like a magnet link for torrent, this serves as the universal locator for that file. This file hash is contained (along with some other information) in the .prv file.
 
 To create a .prv file, simply execute
 
@@ -155,7 +155,7 @@ Connecting to parent hub: https://kbucket.flatironinstitute.org
 Connected to parent hub: https://kbucket.flatironinstitute.org
 ```
 
-Many of the configuration fields are the same as for kbucket-share, but there are a couple of new options:
+Many of the configuration fields are the same as for a share, but there are a couple of new options:
 
 **Listen port.** This is the port to listen on. For simplicity, if this port number ends with the digits 443 (e.g., 10443) then it will use the https protocol (finding the certificates in the kbucket/src/encryption directory). Otherwise it will listen using http.
 
