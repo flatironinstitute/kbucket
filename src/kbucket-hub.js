@@ -2,7 +2,6 @@
 
 const fs=require('fs');
 
-//const KBNodeHub=require(__dirname+'/kbnodehub.js').KBNodeHub;
 const KBNode=require(__dirname+'/kbnode.js').KBNode;
 
 var CLP=new CLParams(process.argv);
