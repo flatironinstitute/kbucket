@@ -24,7 +24,7 @@ function KBucketClient() {
     getNodeInfo(kbnode_id, callback);
   };
   this.readDir = function(kbnode_id, subdirectory, callback) {
-  	readDir(kbnode_id,subdirectory,callback);
+    readDir(kbnode_id, subdirectory, callback);
   }
 
   //var m_kbucket_url='https://kbucket.org';
@@ -37,10 +37,11 @@ function KBucketClient() {
   }
 
   function findFile(sha1, opts, callback) {
-    if (typeof(opts) == 'string')
+    if (typeof(opts) == 'string') {
       opts = {
         filename: opts
       };
+    }
     find_file(sha1, opts, function(err, resp) {
       if (err) {
         callback(err);
@@ -117,33 +118,35 @@ function KBucketClient() {
       }
     });
   }
-  function getNodeInfo(kbnode_id,callback) {
-  	var url0=`${m_kbucket_url}/${kbnode_id}/api/nodeinfo`;
-  	http_get_json(url0,function(err,resp) {
-  		if (err) {
-  			callback(err);
-  			return;
-  		}
-  		if (!resp.info) {
-  			callback('No info field in response to nodeinfo.');
-  			return;
-  		}
-  		callback(err,resp.info);
-  	});
+
+  function getNodeInfo(kbnode_id, callback) {
+    var url0 = `${m_kbucket_url}/${kbnode_id}/api/nodeinfo`;
+    http_get_json(url0, function(err, resp) {
+      if (err) {
+        callback(err);
+        return;
+      }
+      if (!resp.info) {
+        callback('No info field in response to nodeinfo.');
+        return;
+      }
+      callback(err, resp.info);
+    });
   }
-  function readDir(kbnode_id,subdirectory,callback) {
-  	var url0=`${m_kbucket_url}/${kbnode_id}/api/readdir/${subdirectory}`;
-  	http_get_json(url0,function(err,resp) {
-  		if (err) {
-  			callback(err);
-  			return;
-  		}
-  		if (resp.error) {
+
+  function readDir(kbnode_id, subdirectory, callback) {
+    var url0 = `${m_kbucket_url}/${kbnode_id}/api/readdir/${subdirectory}`;
+    http_get_json(url0, function(err, resp) {
+      if (err) {
+        callback(err);
+        return;
+      }
+      if (resp.error) {
         callback(resp.error);
         return;
       }
-  		callback(null,resp.files,resp.dirs);
-  	});
+      callback(null, resp.files, resp.dirs);
+    });
   }
 }
 
@@ -152,9 +155,9 @@ function http_get_json(url, callback) {
       responseType: 'json'
     })
     .then(function(response) {
-    	setTimeout(function() { // so we don't catch an error from the timeout
-      	callback(null, response.data);
-      },0);
+      setTimeout(function() { // so we don't catch an error from the timeout
+        callback(null, response.data);
+      }, 0);
     })
     .catch(function(error) {
       callback(error.message);
@@ -164,9 +167,9 @@ function http_get_json(url, callback) {
 function url_exists(url, callback) {
   axios.head(url)
     .then(function(response) {
-    	setTimeout(function() { // so we don't catch an error from the timeout
-      	callback(response.status == 200);
-      },0);
+      setTimeout(function() { // so we don't catch an error from the timeout
+        callback(response.status == 200);
+      }, 0);
     })
     .catch(function(error) {
       callback(false);

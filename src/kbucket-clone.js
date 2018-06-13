@@ -7,20 +7,33 @@ const KBNode = require(__dirname + '/kbnode.js').KBNode;
 
 function print_usage() {
   console.info('Usage:');
-  console.info('kbucket-clone [share id] [directory]');
+  console.info('kbucket-clone [share id] [dest_directory]');
+  console.info('kbucket-clone [share id]/[subdirectory] [dest_directory]');
 }
 
 const CLP = new CLParams(process.argv);
 
-const kbshare_id = CLP.unnamedParameters[0];
-var share_directory0 = CLP.unnamedParameters[1];
-if ((!kbshare_id) || (!share_directory0)) {
+const arg1 = CLP.unnamedParameters[0];
+const arg2 = CLP.unnamedParameters[1];
+if ((!arg1) || (!arg2)) {
   print_usage();
   process.exit(-1);
 }
-const share_directory = require('path').resolve(share_directory0);
-if (fs.existsSync(share_directory)) {
-  console.error('Unable to clone kbucket share. Directory already exist: ' + share_directory);
+
+var kbshare_id, kbshare_subdirectory;
+const ind0 = arg1.indexOf('/');
+if (ind0 >= 0) {
+  kbshare_id = arg1.slice(0, ind0);
+  kbshare_subdirectory = arg1.slice(ind0+1);
+} else {
+  kbshare_id = arg1;
+  kbshare_subdirectory = '';
+}
+
+const dest_directory0 = arg2;
+const dest_directory = require('path').resolve(dest_directory0);
+if (fs.existsSync(dest_directory)) {
+  console.error('Unable to clone kbucket share. Directory already exist: ' + dest_directory);
   process.exit(-1);
 }
 
@@ -38,7 +51,7 @@ get_node_info(kbshare_id, function(err, info) {
   var do_clone_opts = {
     max_file_download_size_mb: max_file_download_size_mb
   };
-  do_clone(info, do_clone_opts, share_directory);
+  do_clone(info, do_clone_opts, dest_directory);
 });
 
 function get_node_info(kbnode_id, callback) {
@@ -48,11 +61,12 @@ function get_node_info(kbnode_id, callback) {
   });
 }
 
-function do_clone(info, opts, share_directory) {
-  fs.mkdirSync(share_directory);
-  var X = new KBNode(share_directory, 'share');
+function do_clone(info, opts, dest_directory) {
+  fs.mkdirSync(dest_directory);
+  var X = new KBNode(dest_directory, 'share');
   var init_opts = {
     clone_only: true,
+    kbshare_subdirectory: kbshare_subdirectory,
     info: info,
     max_file_download_size_mb: Number(max_file_download_size_mb)
   };
@@ -86,13 +100,13 @@ function find_lowest_accessible_hub_url(kbnode_id, callback) {
 }
 
 /*
-fs.mkdirSync(share_directory);
+fs.mkdirSync(dest_directory);
 
 const max_file_download_size_mb=CLP['max_file_download_size_mb']||1;
 
 console.info('Using maximum download size (MB): '+max_file_download_size_mb);
 
-var X=new KBNode(share_directory,'share');
+var X=new KBNode(dest_directory,'share');
 X.initialize(init_opts,function(err) {
 	if (err) {
 		console.error(err);

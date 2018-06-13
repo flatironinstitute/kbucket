@@ -238,6 +238,9 @@ function KBNodeConfig(kbnode_directory) {
       set_config('description',opts.info.description);
       set_config('owner',opts.info.owner);
       set_config('owner_email',opts.info.owner_email);
+      if (opts.kbshare_subdirectory) {
+        set_config('subdirectory',opts.kbshare_subdirectory);
+      }
     }
 
     var final_answers = {};

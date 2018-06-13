@@ -49,12 +49,12 @@ KBC.findFile(prv_obj.original_checksum, {}, function(err, resp) {
     console.error('File not found on kbucket.');
     return;
   }
-  download_file(resp.url, {
+  download_file(resp.url, output_fname, {
     size: prv_obj.original_size
-  }, output_fname);
+  });
 });
 
-function download_file(url, opts, dest_fname) {
+function download_file(url, dest_fname, opts, callback) {
   console.info(`Downloading [${url}] > [${dest_fname}] ...`);
   var bytes_downloaded = 0;
   var bytes_total = opts.size || null;
@@ -67,19 +67,19 @@ function download_file(url, opts, dest_fname) {
         bytes_downloaded += data.length;
         report_progress(bytes_downloaded, bytes_total);
       });
-      var write_stream=fs.createWriteStream(dest_fname);
+      var write_stream = fs.createWriteStream(dest_fname + '.downloading_');
       response.data.pipe(write_stream);
       response.data.on('end', function() {
-        var bytes_downloaded_mb = Math.round(bytes_downloaded / (1024 * 1024));
-        console.info(`Downloaded ${bytes_downloaded_mb} MB to ${dest_fname}.`)
+        fs.renameSync(dest_fname + '.downloading_', dest_fname);
+        console.info(`Downloaded ${format_file_size(bytes_downloaded)} to ${dest_fname}.`)
+        setTimeout(function() { //dont catch an error from execution of callback
+          callback(null);
+        }, 0);
       });
     })
     .catch(function(err) {
-      console.error(err.message);
+      callback(err.message);
     });
-
-
-
 
   function report_progress(bytes_downloaded, bytes_total) {
     var elapsed = (new Date()) - timer;
@@ -87,12 +87,10 @@ function download_file(url, opts, dest_fname) {
       return;
     }
     timer = new Date();
-    var bytes_downloaded_mb = Math.round(bytes_downloaded / (1024 * 1024));
-    var bytes_total_mb = Math.round(bytes_total / (1024 * 1024));
     if (bytes_total) {
-      console.info(`Downloaded ${bytes_downloaded_mb} of ${bytes_total_mb} MB ...`)
+      console.info(`Downloaded ${format_file_size(bytes_downloaded)} of ${format_file_size(bytes_total)} ...`)
     } else {
-      console.info(`Downloaded ${bytes_downloaded_mb} MB...`);
+      console.info(`Downloaded ${format_file_size(bytes_downloaded)} ...`);
     }
   }
 
@@ -141,3 +139,24 @@ function CLParams(argv) {
     }
   }
 };
+
+function format_file_size(size_bytes) {
+  var a = 1024;
+  var aa = a * a;
+  var aaa = a * a * a;
+  if (size_bytes > aaa) {
+    return Math.floor(size_bytes / aaa) + ' GB';
+  } else if (size_bytes > aaa) {
+    return Math.floor(size_bytes / (aaa / 10)) / 10 + ' GB';
+  } else if (size_bytes > aa) {
+    return Math.floor(size_bytes / aa) + ' MB';
+  } else if (size_bytes > aa) {
+    return Math.floor(size_bytes / (aa / 10)) / 10 + ' MB';
+  } else if (size_bytes > 10 * a) {
+    return Math.floor(size_bytes / a) + ' KB';
+  } else if (size_bytes > a) {
+    return Math.floor(size_bytes / (a / 10)) / 10 + ' KB';
+  } else {
+    return size_bytes + ' bytes';
+  }
+}

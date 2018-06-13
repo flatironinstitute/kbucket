@@ -97,7 +97,7 @@ function KBNode(kbnode_directory, kbnode_type) {
     }
 
     function download_for_clone(callback) {
-      do_download_for_clone(opts, '', callback);
+      do_download_for_clone(opts, opts.kbshare_subdirectory||'', '', callback);
     }
   }
 
@@ -243,16 +243,16 @@ function KBNode(kbnode_directory, kbnode_type) {
     });
   }
 
-  function do_download_for_clone(opts, subdirectory, callback) {
-    var dirpath0 = require('path').join(kbnode_directory, subdirectory);
-    if (subdirectory != '') {
+  function do_download_for_clone(opts, src_subdirectory, dst_subdirectory, callback) {
+    var dirpath0 = require('path').join(kbnode_directory, dst_subdirectory);
+    if (dst_subdirectory != '') {
       if (fs.existsSync(dirpath0)) {
         callback('Stopping download for clone. Directory already exists: ' + dirpath0);
         return;
       }
       fs.mkdirSync(dirpath0);
     }
-    readdir(subdirectory, function(err, files, dirs) {
+    readdir(src_subdirectory, function(err, files, dirs) {
       if (err) {
         callback(err);
         return;
@@ -260,7 +260,7 @@ function KBNode(kbnode_directory, kbnode_type) {
       async.series([function(cb2) {
         async.eachSeries(files, function(file0, cb) {
           if (!file0.prv) {
-            callback(`Stopping download for clone. File not yet indexed: ${subdirectory}/${file0.name}`);
+            callback(`Stopping download for clone. File not yet indexed: ${src_subdirectory}/${file0.name}`);
             return;
           }
           if (file0.prv.original_size <= opts.max_file_download_size_mb * (1024 * 1024)) {
@@ -270,8 +270,8 @@ function KBNode(kbnode_directory, kbnode_type) {
           }
 
           function _download() {
-            console.info(`Downloading ${subdirectory}/${file0.name}`);
-            download_file_from_share(`${subdirectory}/${file0.name}`, dirpath0 + '/' + file0.name, {
+            console.info(`Downloading ${dst_subdirectory}/${file0.name}`);
+            download_file_from_share(`${src_subdirectory}/${file0.name}`, dirpath0 + '/' + file0.name, {
               size: file0.prv.size
             }, function(err) {
               if (err) {
@@ -285,7 +285,7 @@ function KBNode(kbnode_directory, kbnode_type) {
           }
 
           function _write_prv() {
-            console.info(`Writing ${subdirectory}/${file0.name}.prv`)
+            console.info(`Writing ${dst_subdirectory}/${file0.name}.prv`)
             write_json_file(dirpath0 + '/' + file0.name + '.prv', file0.prv);
             cb();
           }
@@ -294,7 +294,7 @@ function KBNode(kbnode_directory, kbnode_type) {
         });
       }, function(cb2) {
         async.eachSeries(dirs, function(dir0, cb) {
-          do_download_for_clone(opts, require('path').join(subdirectory, dir0.name), function(err) {
+          do_download_for_clone(opts, require('path').join(src_subdirectory, dir0.name), require('path').join(dst_subdirectory, dir0.name), function(err) {
             if (err) {
               callback(err);
               return;
@@ -326,9 +326,10 @@ function KBNode(kbnode_directory, kbnode_type) {
           bytes_downloaded += data.length;
           report_progress(bytes_downloaded, bytes_total);
         });
-        var write_stream = fs.createWriteStream(dest_fname);
+        var write_stream = fs.createWriteStream(dest_fname+'.downloading_');
         response.data.pipe(write_stream);
         response.data.on('end', function() {
+          fs.renameSync(dest_fname+'.downloading_',dest_fname);
           console.info(`Downloaded ${format_file_size(bytes_downloaded)} to ${dest_fname}.`)
           setTimeout(function() { //dont catch an error from execution of callback
             callback(null);
