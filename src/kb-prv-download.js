@@ -51,6 +51,8 @@ KBC.findFile(prv_obj.original_checksum, {}, function(err, resp) {
   }
   download_file(resp.url, output_fname, {
     size: prv_obj.original_size
+  },function() {
+    
   });
 });
 
