@@ -25,7 +25,7 @@ if (fs.existsSync(share_directory)) {
   process.exit(-1);
 }
 
-const max_download_size_mb=CLP['max_download_size_mb']||1;
+const max_file_download_size_mb=CLP['max_file_download_size_mb']||1;
 
 get_node_info(kbshare_id,function(err,info) {
   if (err) {
@@ -37,7 +37,7 @@ get_node_info(kbshare_id,function(err,info) {
     process.exit(-1);
   }
   var do_clone_opts={
-    max_download_size_mb:max_download_size_mb
+    max_file_download_size_mb:max_file_download_size_mb
   };
   do_clone(info,do_clone_opts,share_directory);
 });
@@ -55,9 +55,9 @@ function do_clone(info,opts,share_directory) {
   var init_opts={
     clone_only:true,
     info:info,
-    max_download_size_mb:Number(max_download_size_mb)
+    max_file_download_size_mb:Number(max_file_download_size_mb)
   };
-  console.info(`Using max_download_size_mb=${opts.max_download_size_mb}`);
+  console.info(`Using --max_file_download_size_mb=${opts.max_file_download_size_mb}`);
   X.initialize(init_opts,function(err) {
     if (err) {
       console.error(err);
@@ -89,9 +89,9 @@ function find_lowest_accessible_hub_url(kbnode_id, callback) {
 /*
 fs.mkdirSync(share_directory);
 
-const max_download_size_mb=CLP['max_download_size_mb']||1;
+const max_file_download_size_mb=CLP['max_file_download_size_mb']||1;
 
-console.info('Using maximum download size (MB): '+max_download_size_mb);
+console.info('Using maximum download size (MB): '+max_file_download_size_mb);
 
 var X=new KBNode(share_directory,'share');
 X.initialize(init_opts,function(err) {

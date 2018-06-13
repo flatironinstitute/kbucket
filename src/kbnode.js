@@ -263,7 +263,7 @@ function KBNode(kbnode_directory, kbnode_type) {
             callback(`Stopping download for clone. File not yet indexed: ${subdirectory}/${file0.name}`);
             return;
           }
-          if (file0.prv.original_size <= opts.max_download_size_mb * (1024 * 1024)) {
+          if (file0.prv.original_size <= opts.max_file_download_size_mb * (1024 * 1024)) {
             _download();
           } else {
             _write_prv();
