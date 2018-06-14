@@ -6,6 +6,7 @@ const WebSocket = require('ws');
 const findPort = require('find-port');
 const fs = require('fs');
 const axios = require('axios');
+const REQUEST = require('request');
 
 const KBNodeConfig = require(__dirname + '/kbnodeconfig.js').KBNodeConfig;
 const KBNodeShareIndexer = require(__dirname + '/kbnodeshareindexer.js').KBNodeShareIndexer;
@@ -66,6 +67,7 @@ function KBNode(kbnode_directory, kbnode_type) {
     // for kbnode_type='share'
     if (kbnode_type == 'share') {
       if (!opts.clone_only) {
+        steps.push(start_jupyterlab);
         steps.push(start_indexing);
       }
       if (opts.clone_only) {
@@ -143,6 +145,16 @@ function KBNode(kbnode_directory, kbnode_type) {
       handle_download(params.kbshare_id, params.filename, req, res);
     });
 
+    // API jupyterlab
+    app.use('/:kbshare_id/jupyterlab/:path(*)', function(req, res) {
+      var params = req.params;
+      handle_jupyterlab(params.kbshare_id, params.path, req, res);
+    });
+    app.use('/:kbshare_id/jupyterlab', function(req, res) {
+      var params = req.params;
+      handle_jupyterlab(params.kbshare_id, '', req, res);
+    });
+
     // API find (only for kbnode_type='hub')
     app.get('/find/:sha1/:filename(*)', function(req, res) {
       var params = req.params;
@@ -185,6 +197,30 @@ function KBNode(kbnode_directory, kbnode_type) {
         console.info(`kbucket-${kbnode_type} is running ${app.protocol} on port ${app.port}`);
         callback(null);
       });
+    });
+  }
+
+  function start_jupyterlab(callback) {
+    if (!m_config.getConfig('jupyterlab_enabled')) {
+      callback(null);
+      return;
+    }
+    get_jupyterlab_listen_port(function(err, jlport) {
+      if (err) {
+        callback(err);
+        return;
+      }
+      m_config.setJupyterlabPort(jlport);
+      try {
+        var cmd=`jupyter lab --no-browser --port=${m_config.jupyterlabPort()}`
+        console.log ('Running: '+cmd);
+        require('child_process').spawn(cmd,{shell:true});
+      }
+      catch(err) {
+        callback('Error starting jupyter lab: '+err.message);
+        return;
+      }
+      callback(null);
     });
   }
 
@@ -631,6 +667,70 @@ function KBNode(kbnode_directory, kbnode_type) {
     });
   }
 
+  function handle_jupyterlab(kbshare_id, path, req, res) {
+    allow_cross_domain_requests(req, res);
+
+    if (kbnode_type == 'hub') {
+      //var urlpath0 = `${kbshare_id}/jupyterlab/${path}`;
+      var urlpath0 = `${kbshare_id}/jupyterlab/${path}`;
+      route_http_request_to_node(kbshare_id, urlpath0, req, res);
+      return;
+    }
+    // so, kbnode_type = 'share'
+    if (m_config.kbNodeId() != kbshare_id) {
+      res.status(500).send({
+        error: 'Incorrect kbshare id: ' + kbshare_id
+      })
+      return;
+    }
+
+    if (!m_config.getConfig('jupyterlab_enabled')) {
+      res.status(500).send({
+        error: 'jupyterlab is not enabled for share: ' + kbshare_id
+      })
+      return;  
+    }
+
+    if (!path) path='lab';
+    var opts={
+      uri:`http://localhost:${m_config.jupyterlabPort()}/${kbshare_id}/jupyterlab/${path}`,
+      method:req.method,
+      headers:req.headers,
+      followRedirect:true
+    };
+    
+    opts.headers.host = undefined; //This is important because I was having trouble with the SSL certificates getting confused
+    var req2 = REQUEST(opts);
+    var responded=false;
+    req2.on('response', function(res2) {
+      for (var kk in res2.headers) {
+        res.set(kk,res2.headers[kk]);
+      }
+      res.status(res2.statusCode,res2.statusMessage);
+      res2.on('error', function(err) {
+        console.error('Error in response:',err);
+        if (!responded) 
+          res.status(500).send({error:err.message});
+        responded=true;
+      });
+      res2.on('data', function(data) {
+        //data=Buffer.from(data.toString('utf8').split(`"/lab`).join(`"${kbshare_id}/jupyterlab/lab`),'utf8');
+        //data=Buffer.from(data.toString('utf8').split(`"/lab`).join(`"/fab22`),'utf8');
+        res.write(data);
+      });
+      res2.on('end', function() {
+        if (!responded) res.end();
+        responded=true;
+      });
+    });
+    req2.on('error', function(err) {
+      console.error('Error in request:',err);
+      if (!responded)
+        res.status(500).send({error:'Error in request: '+err.message});
+      responded=true;
+    });
+  }
+
   function handle_find(sha1, filename, req, res) {
     allow_cross_domain_requests(req, res);
 
@@ -689,6 +789,17 @@ function KBNode(kbnode_directory, kbnode_type) {
       if ((str == '~') || (str == '.') || (str == '..')) return false;
     }
     return true;
+  }
+
+  function get_jupyterlab_listen_port(callback) {
+    // TODO: figure out better method for determining port in range
+    get_free_port_in_range(KBUCKET_SHARE_PORT_RANGE.split('-'), function(err, listen_port) {
+      if (err) {
+        callback(err);
+        return;
+      }
+      callback(null, listen_port);
+    });
   }
 
   function get_listen_port(callback) {

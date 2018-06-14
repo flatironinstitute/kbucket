@@ -56,6 +56,12 @@ function KBNodeConfig(kbnode_directory) {
   this.listenUrl = function() {
     return listen_url();
   }
+  this.jupyterlabPort =function() {
+    return m_jupyterlab_port;
+  }
+  this.setJupyterlabPort =function(port) {
+    m_jupyterlab_port=port;
+  }
   this.topHubUrl=function() {
     return m_top_hub_url||listen_url();
   }
@@ -77,6 +83,7 @@ function KBNodeConfig(kbnode_directory) {
   var m_listen_port = 0;
   var m_top_hub_url='';
   var m_on_top_hub_url_changed_handlers=[];
+  var m_jupyterlab_port=0;
 
   function createNew(kbnode_type, opts, callback) {
     if (!fs.existsSync(kbnode_directory)) {

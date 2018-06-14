@@ -158,9 +158,12 @@ function HttpOverWebSocketClient(message_sender) {
       command: 'http.initiate_request',
       method: req.method, // http request method
       path: path, // path of the url in the request
+      query: req.query,
       headers: req.headers, // request headers
       request_id: req_id // the unique id used in all correspondence
     });
+
+    var sent=false;
 
     req.on('data', function(data) {
       // We received some data from the client, so we'll pass it on to the server
@@ -184,6 +187,7 @@ function HttpOverWebSocketClient(message_sender) {
 
     function set_response_headers(status, status_message, headers) {
       // Set the response headers and status info -- this is info coming from the server
+      if (sent) return;
       res.status(status, status_message);
       if ((headers.location) && (headers.location.startsWith('/'))) {
         // Redirects are tricky when we are manipulating the path
@@ -198,6 +202,7 @@ function HttpOverWebSocketClient(message_sender) {
     }
 
     function write_response_data(data) {
+      if (sent) return;
       // Write response data (this data comes from the server)
       res.write(data);
     }
@@ -205,6 +210,7 @@ function HttpOverWebSocketClient(message_sender) {
     function end_response() {
       // End the response -- we are done writing -- this was triggered by a message from the server
       res.end();
+      sent=true;
     }
 
     function report_error(err) {
@@ -214,6 +220,7 @@ function HttpOverWebSocketClient(message_sender) {
       res.status(500).send({
         error: errstr
       });
+      sent=true;
     }
   }
 }
@@ -245,6 +252,7 @@ function HttpRequest(forward_url, on_message_handler) {
       method: msg.method,
       uri: `${forward_url}/${msg.path}`,
       headers: msg.headers,
+      query:msg.query,
       followRedirect: false // important because we want the proxy server to handle it instead
     }
     opts.headers.host = undefined; //This is important because I was having trouble with the SSL certificates getting confused
