@@ -82,7 +82,7 @@ function KBNodeApi(config, context) {
       send_500(res, 'Incorrect kbshare id: ' + kbshare_id);
       return;
     }
-    var path0 = require('path').join(kbnode_directory, subdirectory);
+    var path0 = require('path').join(m_config.kbNodeDirectory(), subdirectory);
     fsafe_readdir(path0, function(err, list) {
       if (err) {
         send_500(res, err.message);
@@ -188,7 +188,7 @@ function KBNodeApi(config, context) {
       return;
     }
 
-    var path0 = require('path').join(kbnode_directory, filename);
+    var path0 = require('path').join(m_config.kbNodeDirectory(), filename);
     if ((!exists_sync(path0) && (exists_sync(path0 + '.prv')))) {
       send_500(res, 'File does not exist, although its .prv does exist.');
       return;
@@ -204,7 +204,7 @@ function KBNodeApi(config, context) {
     try {
       res.sendFile(filename, {
         dotfiles: 'allow',
-        root: kbnode_directory
+        root: m_config.kbNodeDirectory()
       });
     } catch (err) {
       logger.error('Caught exception from res.sendFile: ' + filename, {
