@@ -140,6 +140,10 @@ function KBNodeShareIndexer(send_message_to_parent_hub, config) {
 
   function index_files_in_subdirectory(subdirectory, callback) {
     var path0 = require('path').join(m_share_directory, subdirectory);
+    if (!fs.existsSync(path0)) {
+      callback('Directory does not exist: '+path0);
+      return;
+    }
     fs.readdir(path0, function(err, list) {
       if (err) {
         callback(err.message);
@@ -175,7 +179,8 @@ function KBNodeShareIndexer(send_message_to_parent_hub, config) {
         async.eachSeries(reldirpaths, function(reldirpath, cb) {
           index_files_in_subdirectory(reldirpath, function(err) {
             if (err) {
-              callback(err);
+              console.warn(err);
+              cb();
               return;
             }
             cb();
