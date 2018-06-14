@@ -72,12 +72,12 @@ function KBNodeApi(config, context) {
       send_500(res, 'Unsafe path: ' + subdirectory);
       return;
     }
-    if (kbnode_type == 'hub') {
+    if (m_config.kbNodeType() == 'hub') {
       var urlpath0 = `${kbshare_id}/api/readdir/${subdirectory}`;
       route_http_request_to_node(kbshare_id, urlpath0, req, res);
       return;
     }
-    // so, kbnode_type = 'share'
+    // so, m_config.kbNodeType() = 'share'
     if (m_config.kbNodeId() != kbshare_id) {
       send_500(res, 'Incorrect kbshare id: ' + kbshare_id);
       return;
@@ -158,7 +158,7 @@ function KBNodeApi(config, context) {
       path: path,
       req_headers: req.headers
     });
-    if (kbnode_type != 'hub') {
+    if (m_config.kbNodeType() != 'hub') {
       send_500(res, 'Cannot route request from share.');
       return;
     }
@@ -177,12 +177,12 @@ function KBNodeApi(config, context) {
       send_500(res, 'Unsafe path: ' + subdirectory);
       return;
     }
-    if (kbnode_type == 'hub') {
+    if (m_config.kbNodeType() == 'hub') {
       var urlpath0 = `${kbshare_id}/download/${filename}`;
       route_http_request_to_node(kbshare_id, urlpath0, req, res);
       return;
     }
-    // so, kbnode_type = 'share'
+    // so, m_config.kbNodeType() = 'share'
     if (m_config.kbNodeId() != kbshare_id) {
       send_500(res, 'Incorrect kbshare id: ' + kbshare_id);
       return;
@@ -220,7 +220,7 @@ function KBNodeApi(config, context) {
     });
     allow_cross_domain_requests(req, res);
 
-    if (kbnode_type != 'hub') {
+    if (m_config.kbNodeType() != 'hub') {
       send_500(res, 'Cannot find. This is not a hub.');
       return;
     }
