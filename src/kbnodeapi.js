@@ -20,7 +20,7 @@ function KBNodeApi(config, context) {
       route_http_request_to_node(kbnode_id, `${kbnode_id}/api/nodeinfo`, req, res);
       return;
     }
-    var info=m_config.getNodeInfo();
+    var info = m_config.getNodeInfo();
     if (m_context.connection_to_parent_hub) {
       info.parent_hub_info = m_context.connection_to_parent_hub.parentHubInfo();
     }
@@ -30,29 +30,26 @@ function KBNodeApi(config, context) {
     });
   }
 
-  function fsafe_readdir(path,callback) {
+  function fsafe_readdir(path, callback) {
     try {
-      fs.readdir(path,callback);
-    }
-    catch(err) {
-      callback('Error in readdir: '+err.message);
+      fs.readdir(path, callback);
+    } catch (err) {
+      callback('Error in readdir: ' + err.message);
     }
   }
 
-  function fsafe_stat(path,callback) {
+  function fsafe_stat(path, callback) {
     try {
-      fs.stat(path,callback);
-    }
-    catch(err) {
-      callback('Error in stat: '+err.message);
+      fs.stat(path, callback);
+    } catch (err) {
+      callback('Error in stat: ' + err.message);
     }
   }
 
   function is_file(path) {
     try {
       return fs.statSync(path).isFile();
-    }
-    catch(err) {
+    } catch (err) {
       return false;
     }
   }
@@ -60,14 +57,16 @@ function KBNodeApi(config, context) {
   function exists_sync(path) {
     try {
       return fs.existsSync(path);
-    }
-    catch {
+    } catch (err) {
       return false;
     }
   }
 
   function handle_readdir(kbshare_id, subdirectory, req, res) {
-    logger.info('handle_readdir',{kbshare_id:kbshare_id,subdirectory:subdirectory});
+    logger.info('handle_readdir', {
+      kbshare_id: kbshare_id,
+      subdirectory: subdirectory
+    });
     allow_cross_domain_requests(req, res);
     if (!is_safe_path(subdirectory)) {
       send_500(res, 'Unsafe path: ' + subdirectory);
@@ -167,7 +166,10 @@ function KBNodeApi(config, context) {
   }
 
   function handle_download(kbshare_id, filename, req, res) {
-    logger.info('handle_download',{kbshare_id:kbshare_id,filename:filename});
+    logger.info('handle_download', {
+      kbshare_id: kbshare_id,
+      filename: filename
+    });
     allow_cross_domain_requests(req, res);
 
     // don't worry too much because express takes care of this below (b/c we specify a root directory)
@@ -212,7 +214,10 @@ function KBNodeApi(config, context) {
   }
 
   function handle_find(sha1, filename, req, res) {
-    logger.info('handle_find',{sha1:sha1,filename:filename});
+    logger.info('handle_find', {
+      sha1: sha1,
+      filename: filename
+    });
     allow_cross_domain_requests(req, res);
 
     if (kbnode_type != 'hub') {
