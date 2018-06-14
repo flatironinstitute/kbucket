@@ -553,6 +553,7 @@ function KBNode(kbnode_directory, kbnode_type) {
         command: 'report_node_data',
         data: node_data
       });
+      finalize();
     }
     function finalize() {
       setTimeout(function() {
