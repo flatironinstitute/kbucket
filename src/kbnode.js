@@ -7,7 +7,6 @@ const findPort = require('find-port');
 const fs = require('fs');
 const axios = require('axios');
 const REQUEST = require('request');
-const webdav = require('webdav-server').v2;
 
 const logger = require(__dirname + '/logger.js').logger();
 const KBNodeConfig = require(__dirname + '/kbnodeconfig.js').KBNodeConfig;
