@@ -46,7 +46,7 @@ function KBucketHubManager(config) {
         return;
       }
       if (results.length==0) {
-        callback({
+        callback(null,{
           success:true,
           found:false,
           urls:[]

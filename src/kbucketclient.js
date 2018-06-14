@@ -77,7 +77,7 @@ function KBucketClient() {
     }
     http_get_json(url1, function(err, obj) {
       if (err) {
-        callback('Error in http_get_json: ' + err, null);
+        callback(`Error in http_get_json (${url1}): ` + err, null);
         return;
       }
       if (!obj.found) {
