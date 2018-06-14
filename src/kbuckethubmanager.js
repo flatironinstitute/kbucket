@@ -4,6 +4,7 @@ const async = require('async')
 const fs = require('fs');
 const request = require('request');
 const loki = require('lokijs');
+const logger = require(__dirname + '/logger.js').logger();
 
 const HttpOverWebSocketClient = require(__dirname + '/httpoverwebsocket.js').HttpOverWebSocketClient;
 
@@ -291,7 +292,9 @@ function KBConnectedShareManager() {
       return;
     }
     // actually remove it
-    console.info('Removing child share: ' + kbnode_id);
+    var logmsg=`Removing child share: ${kbnode_id}`;
+    logger.info(logmsg);
+    console.info(logmsg);
     delete m_connected_shares[kbnode_id];
   }
 
@@ -539,7 +542,9 @@ function KBConnectedChildHubManager(config) {
       return;
     }
     // actually remove it
-    console.info('Removing child hub: ' + kbnode_id);
+    var logmsg=`Removing child hub: ${kbnode_id}`;
+    logger.info(logmsg);
+    console.info(logmsg);
     delete m_connected_child_hubs[kbnode_id];
   }
 

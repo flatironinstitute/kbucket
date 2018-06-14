@@ -1,6 +1,7 @@
 exports.PoliteWebSocket=PoliteWebSocket;
 
 const WebSocket = require('ws');
+const logger = require(__dirname + '/logger.js').logger();
 
 function PoliteWebSocket(opts) {
   opts=opts||{
@@ -35,12 +36,14 @@ function PoliteWebSocket(opts) {
       perMessageDeflate:false
     });
     m_ws.on('open',function() {
+      logger.info('Connected to remote',{url:url});
       if (callback) {
         callback(null);
         callback=null;
       }
     });
     m_ws.on('error',function(err) {
+      logger.error('Error connecting to remote',{url:url,err:err.message});
       if (callback) {
         callback('Websocket error: '+err.message);
         callback=null;
@@ -52,17 +55,23 @@ function PoliteWebSocket(opts) {
 
   function setup() {
     m_ws.on('close',function() {
+      logger.info('Websocket closed.');
       for (var i in m_on_close_handlers) {
         m_on_close_handlers[i]();
       }
     });
     m_ws.on('error',function(err) {
-      console.error('Websocket error: '+err.message);
+      var msg='Websocket error: '+err.message;
+      logger.error(msg);
+      console.error(msg);
     });
     m_ws.on('unexpected-response',function(err) {
-      console.error('Websocket unexpected response: '+err.message);
+      var msg='Websocket unexpected response: '+err.message;
+      logger.error(msg);
+      console.error(msg);
     });
     m_ws.on('message', (message_str) => {
+      logger.info('Websocket received message',{size:message_str.length});
       if ((opts.enforce_remote_wait_for_response)&&(!m_sent_message_since_last_response)) {
         send_error_and_close_socket('Received message before sending response to last message.');
         return;
@@ -87,6 +96,7 @@ function PoliteWebSocket(opts) {
 
   function send_error_and_close_socket(err) {
     var errstr=err+'. Closing websocket.';
+    logger.error(errstr);
     console.error(errstr);
     if (m_ws.readyState==1) {
       // open
@@ -100,7 +110,9 @@ function PoliteWebSocket(opts) {
   }
 
   function sendMessage(X) {
+    X._timestamp=new Date();
     if ((opts.wait_for_response)&&(!m_received_response_since_last_message)) {
+      logger.info('Sending message',{command:X.command||''});
       m_queued_messages.push(X);
     }
     else {
@@ -112,8 +124,16 @@ function PoliteWebSocket(opts) {
       // the socket is not open
       return;
     }
+    var elapsed=(new Date())-X._timestamp;
+    delete X['_timestamp'];
+    logger.info('Sending messages',{command:X.command,elapsed_since_queued_ms:elapsed});
     var message_str=JSON.stringify(X);
-    m_ws.send(message_str);
+    try {
+      m_ws.send(message_str);
+    }
+    catch(err) {
+      send_error_and_close_socket('Error sending websocket message: '+err.message);
+    }
     m_received_response_since_last_message=false;
     m_sent_message_since_last_response=true;
   }

@@ -1,6 +1,7 @@
 exports.KBConnectionToParentHub = KBConnectionToParentHub;
 
 const crypto = require('crypto');
+const logger = require(__dirname + '/logger.js').logger();
 
 const PoliteWebSocket = require(__dirname + '/politewebsocket.js').PoliteWebSocket;
 const HttpOverWebSocketServer = require(__dirname + '/httpoverwebsocket.js').HttpOverWebSocketServer;

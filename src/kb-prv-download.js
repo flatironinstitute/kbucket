@@ -52,7 +52,7 @@ KBC.findFile(prv_obj.original_checksum, {}, function(err, resp) {
   download_file(resp.url, output_fname, {
     size: prv_obj.original_size
   },function() {
-    
+
   });
 });
 
@@ -146,11 +146,11 @@ function format_file_size(size_bytes) {
   var a = 1024;
   var aa = a * a;
   var aaa = a * a * a;
-  if (size_bytes > aaa) {
+  if (size_bytes > aaa*3) {
     return Math.floor(size_bytes / aaa) + ' GB';
   } else if (size_bytes > aaa) {
     return Math.floor(size_bytes / (aaa / 10)) / 10 + ' GB';
-  } else if (size_bytes > aa) {
+  } else if (size_bytes > aa*3) {
     return Math.floor(size_bytes / aa) + ' MB';
   } else if (size_bytes > aa) {
     return Math.floor(size_bytes / (aa / 10)) / 10 + ' MB';

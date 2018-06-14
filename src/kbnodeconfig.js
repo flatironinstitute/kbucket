@@ -11,6 +11,10 @@ const sha1 = require('node-sha1');
 
 // kbnode type = hub or share
 function KBNodeConfig(kbnode_directory) {
+  const that=this;
+  this.configDir = function() {
+    return m_config_dir;
+  }
   this.configDirExists = function() {
     return fs.existsSync(m_config_dir);
   };
@@ -56,18 +60,21 @@ function KBNodeConfig(kbnode_directory) {
   this.listenUrl = function() {
     return listen_url();
   }
-  this.topHubUrl=function() {
-    return m_top_hub_url||listen_url();
+  this.topHubUrl = function() {
+    return m_top_hub_url || listen_url();
   }
-  this.setTopHubUrl=function(url) {
-    if (url!=m_top_hub_url) {
-      m_top_hub_url=url;
+  this.setTopHubUrl = function(url) {
+    if (url != m_top_hub_url) {
+      m_top_hub_url = url;
       for (var i in m_on_top_hub_url_changed_handlers)
         m_on_top_hub_url_changed_handlers[i]();
     }
   }
-  this.onTopHubUrlChanged=function(handler) {
+  this.onTopHubUrlChanged = function(handler) {
     m_on_top_hub_url_changed_handlers.push(handler);
+  }
+  this.getNodeInfo=function() {
+    return getNodeInfo();
   }
 
   var m_config_dir = kbnode_directory + '/.kbucket';
@@ -75,8 +82,8 @@ function KBNodeConfig(kbnode_directory) {
   var m_kbnode_id = ''; //set by initialize
   var m_kbnode_type = ''; //set by initialize
   var m_listen_port = 0;
-  var m_top_hub_url='';
-  var m_on_top_hub_url_changed_handlers=[];
+  var m_top_hub_url = '';
+  var m_on_top_hub_url_changed_handlers = [];
 
   function createNew(kbnode_type, opts, callback) {
     if (!fs.existsSync(kbnode_directory)) {
@@ -92,7 +99,7 @@ function KBNodeConfig(kbnode_directory) {
       return;
     }
     fs.mkdirSync(kbnode_directory + '/.kbucket');
-    generate_pem_files_and_kbnode_id(opts,function() {
+    generate_pem_files_and_kbnode_id(opts, function() {
       set_config('kbnode_type', kbnode_type);
       callback(null);
     });
@@ -229,17 +236,16 @@ function KBNodeConfig(kbnode_directory) {
           validate: is_valid_url
         });
       }
-    }
-    else {
+    } else {
       //clone only
-      set_config('readonly',true);
-      set_config('kbnode_type',opts.info.kbnode_type);
-      set_config('name',opts.info.name);
-      set_config('description',opts.info.description);
-      set_config('owner',opts.info.owner);
-      set_config('owner_email',opts.info.owner_email);
+      set_config('readonly', true);
+      set_config('kbnode_type', opts.info.kbnode_type);
+      set_config('name', opts.info.name);
+      set_config('description', opts.info.description);
+      set_config('owner', opts.info.owner);
+      set_config('owner_email', opts.info.owner_email);
       if (opts.kbshare_subdirectory) {
-        set_config('subdirectory',opts.kbshare_subdirectory);
+        set_config('subdirectory', opts.kbshare_subdirectory);
       }
     }
 
@@ -338,18 +344,17 @@ function KBNodeConfig(kbnode_directory) {
     return url;
   }
 
-  function generate_pem_files_and_kbnode_id(opts,callback) {
+  function generate_pem_files_and_kbnode_id(opts, callback) {
     if (!opts.clone_only) {
       var pair = keypair();
       var private_key = pair.private;
       var public_key = pair.public;
       write_text_file(m_config_dir + '/private.pem', private_key);
       write_text_file(m_config_dir + '/public.pem', public_key);
-      var kbnode_id = sha1(public_key).slice(0,12); //important
+      var kbnode_id = sha1(public_key).slice(0, 12); //important
       set_config('kbnode_id', kbnode_id);
-    }
-    else {
-      set_config('kbnode_id',opts.info.kbnode_id);
+    } else {
+      set_config('kbnode_id', opts.info.kbnode_id);
     }
     callback();
   }
@@ -357,8 +362,8 @@ function KBNodeConfig(kbnode_directory) {
   function get_config(key) {
     var config = read_json_file(m_config_file_path);
     if (!config) {
-      console.warn('Problem reading or parsing configuration file: '+m_config_file_path);
-      config={};
+      console.warn('Problem reading or parsing configuration file: ' + m_config_file_path);
+      config = {};
     }
     return config[key];
   }
@@ -500,6 +505,20 @@ function KBNodeConfig(kbnode_directory) {
       return;
     }
     callback(null);
+  }
+
+  function getNodeInfo() {
+    var ret = {
+      kbnode_id: that.kbNodeId(),
+      kbnode_type: that.kbNodeType(),
+      name: that.getConfig('name'),
+      description: that.getConfig('description'),
+      owner: that.getConfig('owner'),
+      owner_email: that.getConfig('owner_email'),
+      listen_url: that.listenUrl() || undefined,
+      public_key: that.publicKey() || undefined
+    };
+    return ret;
   }
 
   function safe_remove_file(cache_filepath) {
