@@ -32,11 +32,11 @@ function KBNodeShareIndexer(send_message_to_parent_hub, config) {
   }
 
   function restartIndexing() {
-    index_files_in_subdirectory('',function(err) {
+    index_files_in_subdirectory('', function(err) {
       if (err) {
         console.error(`Error indexing files: ${err}. Aborting.`);
         process.exit(-1);
-      }  
+      }
       startIndexing();
     });
   }
@@ -113,33 +113,42 @@ function KBNodeShareIndexer(send_message_to_parent_hub, config) {
         })) {
         callback('Unable to set file info for: ' + relfilepath);
       }
-      m_indexed_files[relfilepath] = {prv:prv};
+      m_indexed_files[relfilepath] = {
+        prv: prv
+      };
       callback();
     });
   }
 
   function start_watching() {
-    watcher.watch(m_share_directory, {
-      ignoreInitial: true
-    }).on('all', function(evt, path) {
-      if (!path.startsWith(m_share_directory + '/')) {
-        console.warn('Watched file does not start with expected directory', path, m_share_directory);
-        return;
-      }
-      var relpath = path.slice((m_share_directory + '/').length);
-      if (relpath.startsWith('.kbucket')) {
-        return;
-      }
-      if (is_indexable(relpath)) {
-        m_queued_files_for_indexing[relpath] = true;
-      }
-    });
+    try {
+      watcher.watch(m_share_directory, {
+          ignoreInitial: true
+        }).on('all', function(evt, path) {
+          if (!path.startsWith(m_share_directory + '/')) {
+            console.warn('Watched file does not start with expected directory', path, m_share_directory);
+            return;
+          }
+          var relpath = path.slice((m_share_directory + '/').length);
+          if (relpath.startsWith('.kbucket')) {
+            return;
+          }
+          if (is_indexable(relpath)) {
+            m_queued_files_for_indexing[relpath] = true;
+          }
+        })
+        .on('error', function(err) {
+          console.warn('Error in watcher: ' + err.message);
+        });
+    } catch (err) {
+      console.error('Problem with watcher: ' + err.message);
+    }
   }
 
   function index_files_in_subdirectory(subdirectory, callback) {
     var path0 = require('path').join(m_share_directory, subdirectory);
     if (!fs.existsSync(path0)) {
-      callback('Directory does not exist: '+path0);
+      callback('Directory does not exist: ' + path0);
       return;
     }
     fs.readdir(path0, function(err, list) {
@@ -370,6 +379,7 @@ function is_indexable(relpath) {
 }
 
 function is_excluded_directory_name(name) {
+  if (name.startsWith('.')) return true;
   var to_exclude = ['node_modules', '.git', '.kbucket'];
   return (to_exclude.indexOf(name) >= 0);
 }

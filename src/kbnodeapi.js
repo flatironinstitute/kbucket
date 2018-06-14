@@ -348,6 +348,7 @@ function read_text_file(fname) {
 }
 
 function is_excluded_directory_name(name) {
+  if (name.startsWith('.')) return true;
   var to_exclude = ['node_modules', '.git', '.kbucket'];
   return (to_exclude.indexOf(name) >= 0);
 }
