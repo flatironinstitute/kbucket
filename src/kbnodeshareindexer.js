@@ -41,8 +41,6 @@ function KBNodeShareIndexer(send_message_to_parent_hub, config) {
     });
   }
 
-  
-
   restartIndexing();
   start_watching();
 

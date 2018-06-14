@@ -544,6 +544,7 @@ function KBNode(kbnode_directory, kbnode_type) {
 
   function do_send_node_data_to_parent() {
     if (!m_context.connection_to_parent_hub) {
+      finalize();
       return;
     }
     if (kbnode_type == 'hub') {
@@ -552,6 +553,8 @@ function KBNode(kbnode_directory, kbnode_type) {
         command: 'report_node_data',
         data: node_data
       });
+    }
+    function finalize() {
       setTimeout(function() {
         do_send_node_data_to_parent();
       }, 5000);
