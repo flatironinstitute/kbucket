@@ -58,6 +58,8 @@ Web interface: https://kbucketgui.herokuapp.com/?share=cf59975225e0
 Indexed 7 files.
 ```
 
+Note that the files of the share are now browseable/downloadable via a web interface as indicated in the output from kbucket.
+
 Let's go through what all this means, and what has actually happened.
 
 I am now hosting a new kbucket share (kb-share), which allows other researchers to access the files within this shared directory provided that they know the ID of the share (in this case `cf59975225e0`) or the SHA-1 hashes of those files (or the corresponding .prv files). Here are some details on the configuration options:
@@ -89,7 +91,7 @@ This is useful if you don't want to press [enter] a bunch of times.
 
 Once kbucket-host is running, and assuming we are connected to a hub within the KBucket network, the files in this directory can be accessed from any computer on the internet via http/https. However, one piece of information is needed in order to locate and download any particular file: the SHA-1 hash of the file. Much like a magnet link for torrent, this serves as the universal locator for that file. This file hash is contained (along with some other information) in the .prv file.
 
-To create a .prv file, simply execute
+You can download .prv files corresponding to files in your share via the web interface mentioned above, or to create a .prv file on your local computer, simply execute
 
 ```
 kb-prv-create /path/to/data/directory/file1.dat file1.dat.prv
