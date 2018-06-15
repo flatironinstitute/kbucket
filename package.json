@@ -19,7 +19,5 @@
     "url": "https://github.com/flatironinstitute/kbucket/issues"
   },
   "homepage": "https://github.com/flatironinstitute/kbucket#readme",
-  "dependencies": {
-    "lokijs": "^1.5.5"
-  }
+  "dependencies": {}
 }

@@ -29,10 +29,10 @@ function KBNode(kbnode_directory, kbnode_type) {
   };
   this.setKBucketUrl = function(url) {
     m_kbucket_url = url;
-  }
+  };
 
   var m_config = new KBNodeConfig(kbnode_directory);
-  var m_context = {};
+  let m_context = {};
   var API = new KBNodeApi(m_config, m_context);
   var m_app = null;
   m_context.connection_to_parent_hub = null;
@@ -40,6 +40,8 @@ function KBNode(kbnode_directory, kbnode_type) {
 
   // only used for kbnode_type='share'
   m_context.share_indexer = null;
+  if (kbnode_type=='share')
+    m_context.share_indexer=new KBNodeShareIndexer(m_config);
 
   // only used for kbnode_type='hub'
   m_context.hub_manager = null;
@@ -165,7 +167,7 @@ function KBNode(kbnode_directory, kbnode_type) {
       API.handle_find(params.sha1, '', req, res);
     });
 
-    
+
 
     get_listen_port(function(err, listen_port) {
       if (err) {
@@ -205,6 +207,16 @@ function KBNode(kbnode_directory, kbnode_type) {
         callback(null);
       });
     });
+  }
+
+  function get_node_data_for_parent() {
+    if (m_config.kbNodeType() == 'hub') {
+      return m_context.hub_manager.nodeDataForParent();
+    } else if (m_config.kbNodeType() == 'share') {
+      return m_context.share_indexer.nodeDataForParent();
+    } else {
+      return {};
+    }
   }
 
   function connect_to_parent_hub(callback) {
@@ -247,7 +259,7 @@ function KBNode(kbnode_directory, kbnode_type) {
         return;
       }
       if (m_context.share_indexer) {
-        m_context.share_indexer.restartIndexing(); //need to think about this...
+        m_context.share_indexer.restartIndexing();
       }
       callback(null);
     });
@@ -389,22 +401,12 @@ function KBNode(kbnode_directory, kbnode_type) {
     });
   }
 
-  function send_message_to_parent_hub(msg) {
-    if (!m_context.connection_to_parent_hub) {
-      console.error('Cannot send message: m_context.connection_to_parent_hub is null.');
-      return false;
-    }
-    m_context.connection_to_parent_hub.sendMessage(msg);
-    return true;
-  }
-
   function start_indexing(callback) {
     console.info('Starting indexing...');
     if (kbnode_type != 'share') {
       console.error('start_indexing is only for kbnode_type=share')
       process.exit(-1);
     }
-    m_context.share_indexer = new KBNodeShareIndexer(send_message_to_parent_hub, m_config);
     m_context.share_indexer.startIndexing(callback);
   }
 
@@ -440,7 +442,7 @@ function KBNode(kbnode_directory, kbnode_type) {
 
   function on_new_websocket_connection(ws) {
     if (kbnode_type != 'hub') {
-      console.error('on_new_websocket_connection is only for kbnode_type=hub')
+      console.error('on_new_websocket_connection is only for kbnode_type=hub');
       process.exit(-1);
     }
 
@@ -459,7 +461,7 @@ function KBNode(kbnode_directory, kbnode_type) {
       if (CC.childNodeType() == 'share') {
 
         // Everything looks okay, let's add this share to our share manager
-        var logmsg=`Adding child share: ${CC.childNodeRegistrationInfo().name} (${CC.childNodeId()})`;
+        const logmsg = `Adding child share: ${CC.childNodeRegistrationInfo().name} (${CC.childNodeId()})`;
         logger.info(logmsg);
         console.info(logmsg);
 
@@ -477,7 +479,7 @@ function KBNode(kbnode_directory, kbnode_type) {
         //todo: how do we free up the CC object?
       } else if (CC.childNodeType() == 'hub') {
         // Everything looks okay, let's add this share to our share manager
-        var logmsg=`Adding child hub: ${CC.childNodeRegistrationInfo().name} (${CC.childNodeId()})`;
+        const logmsg = `Adding child hub: ${CC.childNodeRegistrationInfo().name} (${CC.childNodeId()})`;
         logger.info(logmsg);
         console.info(logmsg);
 
@@ -547,14 +549,13 @@ function KBNode(kbnode_directory, kbnode_type) {
       finalize();
       return;
     }
-    if (kbnode_type == 'hub') {
-      var node_data = m_context.hub_manager.nodeData();
-      m_context.connection_to_parent_hub.sendMessage({
-        command: 'report_node_data',
-        data: node_data
-      });
-      finalize();
-    }
+    const node_data = get_node_data_for_parent();
+    m_context.connection_to_parent_hub.sendMessage({
+      command: 'report_node_data',
+      data: node_data
+    });
+    finalize();
+
     function finalize() {
       setTimeout(function() {
         do_send_node_data_to_parent();
@@ -562,10 +563,6 @@ function KBNode(kbnode_directory, kbnode_type) {
     }
   }
 }
-
-
-
-
 
 function format_file_size(size_bytes) {
   var a = 1024;

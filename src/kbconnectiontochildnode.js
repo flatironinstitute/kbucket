@@ -9,37 +9,37 @@ function KBConnectionToChildNode(config) {
   };
   this.reportErrorAndCloseSocket = function(err) {
     report_error_and_close_socket(err);
-  }
+  };
   this.childNodeId = function() {
     return m_child_node_id;
   };
   this.childNodeType = function() {
     if (!m_child_node_registration_info) return '';
     return m_child_node_registration_info.kbnode_type;
-  }
+  };
   this.childNodeRegistrationInfo = function() {
     if (!m_child_node_registration_info) return {};
     return JSON.parse(JSON.stringify(m_child_node_registration_info));
-  }
+  };
   this.childNodeData = function() {
     if (!m_child_node_data) return {};
     return JSON.parse(JSON.stringify(m_child_node_data));
-  }
+  };
   this.onRegistered = function(handler) {
     m_on_registered_handlers.push(handler);
-  }
+  };
   this.onMessage = function(handler) {
     m_on_message_handlers.push(handler);
-  }
+  };
   this.sendMessage = function(msg) {
     sendMessage(msg);
-  }
+  };
   this.onError = function(handler) {
     m_on_error_handlers.push(handler);
-  }
+  };
   this.onClose = function(handler) {
     m_on_close_handlers.push(handler);
-  }
+  };
 
   var m_child_node_socket = null;
   var m_child_node_id = null; //should be received on first message

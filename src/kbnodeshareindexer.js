@@ -7,66 +7,97 @@ const watcher = require('chokidar');
 const async = require('async');
 const sha1 = require('node-sha1');
 
-function KBNodeShareIndexer(send_message_to_parent_hub, config) {
+const SteadyFileIterator = require(__dirname + '/steadyfileiterator.js').SteadyFileIterator;
+
+function KBNodeShareIndexer(config) {
   this.startIndexing = function() {
     startIndexing();
   };
   this.restartIndexing = function() {
-    restartIndexing();
+    m_indexed_files = {};
+    m_queued_files = {};
+    m_file_iterator.restart();
   };
-  this.getPrvForIndexedFile = function(relfilepath) {
-    if (!(relfilepath in m_indexed_files)) {
+  this.getPrvForIndexedFile = function(relpath) {
+    if (!(relpath in m_indexed_files)) {
       return null;
     }
-    return m_indexed_files[relfilepath].prv;
-  }
+    return m_indexed_files[relpath].prv;
+  };
+  this.nodeDataForParent=function() {
+    var files_by_sha1={};
+    for (var relpath in m_indexed_files) {
+      const file0=m_indexed_files[relpath];
+      const sha1=file0.prv.original_checksum;
+      files_by_sha1[sha1]={
+        path:relpath,
+        size:file0.prv.original_size
+      };
+    }
+    return {
+      files_by_sha1:files_by_sha1
+    };
+  };
 
-  var m_share_directory = config.kbNodeDirectory();
-  var m_is_indexing_queued_files = false;
-  var m_queued_files_for_indexing = {};
+  var m_queued_files = {};
   var m_indexed_files = {};
 
+  var m_file_iterator = new SteadyFileIterator(config.kbNodeDirectory());
+  m_file_iterator.onUpdateFile(function(relpath, stat0) { //note: stat is not really used
+    update_file(relpath, stat0);
+  });
+  m_file_iterator.onRemoveFile(function(relpath) {
+    remove_file(relpath);
+  });
+
+  function update_file(relpath,stat0) {
+    m_queued_files[relpath]=true;
+  }
+
+  function remove_file(relpath) {
+    if (relpath in m_queued_files) {
+      delete m_queued_files[relpath];
+    }
+    if (relpath in m_indexed_files) {
+      delete m_indexed_files[relpath];
+    }
+  }
+
   function startIndexing() {
-    if (m_is_indexing_queued_files) return;
-    start_indexing_queued_files();
+    m_file_iterator.start();
   }
 
-  function restartIndexing() {
-    index_files_in_subdirectory('', function(err) {
+  handle_queued_files();
+  function handle_queued_files() {
+    do_handle_queued_files(function(err) {
       if (err) {
-        console.error(`Error indexing files: ${err}. Aborting.`);
-        process.exit(-1);
-      }
-      startIndexing();
-    });
-  }
-
-  restartIndexing();
-  start_watching();
-
-  function start_indexing_queued_files() {
-    m_is_indexing_queued_files = true;
-    var num_before = Object.keys(m_queued_files_for_indexing).length;
-    index_queued_files(function(err) {
-      if (err) {
-        console.error('Error indexing queued files: ' + err);
-        m_is_indexing_queued_files = false;
-        return;
+        console.warn('Problem handling queued files: '+err);
       }
       setTimeout(function() {
-        var num_after = Object.keys(m_queued_files_for_indexing).length;
-        if ((num_before > 0) && (num_after == 0)) {
-          console.info(`Done indexing ${Object.keys(m_indexed_files).length} files.`);
-        }
-        start_indexing_queued_files();
-      }, 1);
+        handle_queued_files();
+        report_changes();
+      }, 100);
     });
   }
 
-  function index_queued_files(callback) {
-    var keys = Object.keys(m_queued_files_for_indexing);
-    async.eachSeries(keys, function(key, cb) {
-      index_queued_file(key, function(err) {
+  let s_last_report={};
+  function report_changes() {
+    var report={
+      num_queued_files:Object.keys(m_queued_files).length,
+      num_indexed_files:Object.keys(m_indexed_files).length
+    };
+    if (JSON.stringify(report)!=JSON.stringify(s_last_report)) {
+      if (report.num_queued_files===0) {
+        console.info(`Indexed ${report.num_indexed_files} files.`);
+      }
+      s_last_report=report;
+    }
+  }
+
+  function do_handle_queued_files(callback) {
+    var relpaths = Object.keys(m_queued_files);
+    async.eachSeries(relpaths, function(relpath, cb) {
+      handle_queued_file(relpath, function(err) {
         if (err) {
           callback(err);
           return;
@@ -78,124 +109,32 @@ function KBNodeShareIndexer(send_message_to_parent_hub, config) {
     });
   }
 
-  function index_queued_file(key, callback) {
-    if (!(key in m_queued_files_for_indexing)) {
+  function handle_queued_file(relpath, callback) {
+    if (!(relpath in m_queued_files)) {
       callback();
       return;
     }
-    var relfilepath = key;
-    delete m_queued_files_for_indexing[key];
-    if (!require('fs').existsSync(m_share_directory + '/' + relfilepath)) {
-      console.info('File no longer exists: ' + relfilepath);
-      if (!send_message_to_parent_hub({
-          command: 'set_file_info',
-          path: relfilepath,
-          prv: undefined
-        })) {
-        callback('Unable to set file info for removed file: ' + relfilepath);
+
+    delete m_queued_files[relpath];
+
+    const fullpath=require('path').join(config.kbNodeDirectory(),relpath);
+    if (!exists_sync(fullpath)) {
+      if (relpath in m_indexed_files) {
+        delete m_indexed_files[relpath];
+        callback(null);
         return;
       }
-      if (relfilepath in m_indexed_files)
-        delete m_indexed_files[relfilepath];
-      callback();
-      return;
     }
-    console.info(`Computing prv for: ${relfilepath}...`);
-    compute_prv(relfilepath, function(err, prv) {
+
+    compute_prv(relpath,function(err,prv) {
       if (err) {
         callback(err);
         return;
       }
-      if (!send_message_to_parent_hub({
-          command: 'set_file_info',
-          path: relfilepath,
-          prv: prv
-        })) {
-        callback('Unable to set file info for: ' + relfilepath);
-      }
-      m_indexed_files[relfilepath] = {
-        prv: prv
+      m_indexed_files[relpath]={
+        prv:prv
       };
       callback();
-    });
-  }
-
-  function start_watching() {
-    try {
-      watcher.watch(m_share_directory, {
-          ignoreInitial: true
-        }).on('all', function(evt, path) {
-          if (!path.startsWith(m_share_directory + '/')) {
-            console.warn('Watched file does not start with expected directory', path, m_share_directory);
-            return;
-          }
-          var relpath = path.slice((m_share_directory + '/').length);
-          if (relpath.startsWith('.kbucket')) {
-            return;
-          }
-          if (is_indexable(relpath)) {
-            m_queued_files_for_indexing[relpath] = true;
-          }
-        })
-        .on('error', function(err) {
-          console.warn('Error in watcher: ' + err.message);
-        });
-    } catch (err) {
-      console.error('Problem with watcher: ' + err.message);
-    }
-  }
-
-  function index_files_in_subdirectory(subdirectory, callback) {
-    var path0 = require('path').join(m_share_directory, subdirectory);
-    if (!fs.existsSync(path0)) {
-      callback('Directory does not exist: ' + path0);
-      return;
-    }
-    fs.readdir(path0, function(err, list) {
-      if (err) {
-        callback(err.message);
-        return;
-      }
-      var relfilepaths = [],
-        reldirpaths = [];
-      async.eachSeries(list, function(item, cb) {
-        if ((item == '.') || (item == '..') || (item == '.kbucket')) {
-          cb();
-          return;
-        }
-        fs.stat(require('path').join(path0, item), function(err0, stat0) {
-          if (err0) {
-            callback(`Error in stat of file ${item}: ${err0.message}`);
-            return;
-          }
-          if (stat0.isFile()) {
-            relfilepaths.push(require('path').join(subdirectory, item));
-          } else if (stat0.isDirectory()) {
-            if (!is_excluded_directory_name(item)) {
-              reldirpaths.push(require('path').join(subdirectory, item));
-            }
-          }
-          cb();
-        });
-      }, function() {
-        for (var i in relfilepaths) {
-          if (is_indexable(relfilepaths[i])) {
-            m_queued_files_for_indexing[relfilepaths[i]] = true;
-          }
-        }
-        async.eachSeries(reldirpaths, function(reldirpath, cb) {
-          index_files_in_subdirectory(reldirpath, function(err) {
-            if (err) {
-              console.warn(err);
-              cb();
-              return;
-            }
-            cb();
-          });
-        }, function() {
-          callback(null);
-        });
-      });
     });
   }
 
@@ -214,7 +153,9 @@ function KBNodeShareIndexer(send_message_to_parent_hub, config) {
       callback(null, prv_obj);
       return;
     }
-    computePrvObject(m_share_directory + '/' + relpath, function(err, obj) {
+    const fullpath=require('path').join(config.kbNodeDirectory(),relpath);
+    console.info(`Computing prv for: ${relpath}`);
+    computePrvObject(fullpath, function(err, obj) {
       if (err) {
         callback(err);
         return;
@@ -223,41 +164,6 @@ function KBNodeShareIndexer(send_message_to_parent_hub, config) {
       callback(null, obj);
     });
   }
-
-  /*
-  function parse_json(str) {
-    try {
-      return JSON.parse(str);
-    } catch (err) {
-      return null;
-    }
-  }
-  */
-
-  /*
-  function run_command_and_read_stdout(cmd, callback) {
-    var P;
-    try {
-      P = require('child_process').spawn(cmd, {
-        shell: true
-      });
-    } catch (err) {
-      callback(`Problem launching ${cmd}: ${err.message}`);
-      return;
-    }
-    var txt = '';
-    P.stdout.on('data', function(chunk) {
-      txt += chunk.toString();
-    });
-    P.on('close', function(code) {
-      callback(null, txt);
-    });
-    P.on('error', function(err) {
-      callback(`Problem running ${cmd}: ${err.message}`);
-    })
-  }
-  */
-
 }
 
 function stat_file(fname) {
@@ -283,6 +189,10 @@ function computePrvDirectoryObject(path0, callback) {
         cb();
         return;
       }
+      if (!include_file_name(item)) {
+        cb();
+        return;
+      }
       var path1 = require('path').join(path0, item);
       fs.stat(path1, function(err0, stat0) {
         if (err0) {
@@ -298,12 +208,8 @@ function computePrvDirectoryObject(path0, callback) {
             }
             ret.files[item] = prv_obj1;
             cb();
-          })
+          });
         } else if (stat0.isDirectory()) {
-          if (is_excluded_directory_name(item)) {
-            cb();
-            return;
-          }
           computePrvDirectoryObject(path1, function(err1, prvdir_obj1) {
             if (err1) {
               callback(err1);
@@ -311,7 +217,7 @@ function computePrvDirectoryObject(path0, callback) {
             }
             ret.dirs[item] = prvdir_obj1;
             cb();
-          })
+          });
         } else {
           callback('Error in stat object for file: ' + path1);
           return;
@@ -369,17 +275,17 @@ function compute_file_sha1(path, opts, callback) {
   });
 }
 
-function is_indexable(relpath) {
-  var list = relpath.split('/');
-  for (var i = 0; i < list.length - 1; i++) {
-    if (is_excluded_directory_name(list[i]))
-      return false;
-  }
+function include_file_name(name) {
+  if (name.startsWith('.')) return false;
+  if (name == 'node_modules') return false;
   return true;
 }
 
-function is_excluded_directory_name(name) {
-  if (name.startsWith('.')) return true;
-  var to_exclude = ['node_modules', '.git', '.kbucket'];
-  return (to_exclude.indexOf(name) >= 0);
+function exists_sync(path) {
+  try {
+    return require('fs').existsSync(path);
+  }
+  catch(err) {
+    return false;
+  }
 }

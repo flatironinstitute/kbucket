@@ -1,88 +1,117 @@
-exports.PoliteWebSocket=PoliteWebSocket;
+exports.PoliteWebSocket = PoliteWebSocket;
 
 const WebSocket = require('ws');
 const logger = require(__dirname + '/logger.js').logger();
 
 function PoliteWebSocket(opts) {
-  opts=opts||{
-    wait_for_response:false,
-    enforce_remote_wait_for_response:false
+  opts = opts || {
+    wait_for_response: false,
+    enforce_remote_wait_for_response: false
   };
 
   // use one of the following two methods to initialize
-  this.connectToRemote=function(url,callback) {connectToRemote(url,callback);}
-  this.setSocket=function(ws) {m_ws=ws; setup();};
+  this.connectToRemote = function(url, callback) {
+    connectToRemote(url, callback);
+  }
+  this.setSocket = function(ws) {
+    m_ws = ws;
+    setup();
+  };
 
   // operations
-  this.sendMessage=function(X) {sendMessage(X);};
-  this.close=function() {close();}
-  this.sendErrorAndClose=function(err) {send_error_and_close_socket(err);};
-  this.forwardHttpRequest=function(req,res) {forward_http_request(req,res);};
+  this.sendMessage = function(X) {
+    sendMessage(X);
+  };
+  this.close = function() {
+    close();
+  }
+  this.sendErrorAndClose = function(err) {
+    send_error_and_close_socket(err);
+  };
+  this.forwardHttpRequest = function(req, res) {
+    forward_http_request(req, res);
+  };
 
   // event handlers
-  this.onMessage=function(handler) {m_on_message_handlers.push(handler);};
-  this.onClose=function(handler) {m_on_close_handlers.push(handler);};
+  this.onMessage = function(handler) {
+    m_on_message_handlers.push(handler);
+  };
+  this.onClose = function(handler) {
+    m_on_close_handlers.push(handler);
+  };
 
-  var m_received_response_since_last_message=true;
-  var m_sent_message_since_last_response=true;
-  var m_queued_messages=[];
-  var m_ws=null;
-  var m_on_message_handlers=[];
-  var m_on_close_handlers=[];
-  var m_wait_to_send=true;
+  var m_received_response_since_last_message = true;
+  var m_sent_message_since_last_response = true;
+  var m_queued_messages = [];
+  var m_ws = null;
+  var m_on_message_handlers = [];
+  var m_on_close_handlers = [];
+  var m_wait_to_send = true;
 
-  function connectToRemote(url,callback) {
+  function connectToRemote(url, callback) {
     m_ws = new WebSocket(url, {
-      perMessageDeflate:false
+      perMessageDeflate: false
     });
-    m_ws.on('open',function() {
-      logger.info('Connected to remote',{url:url});
+    m_ws.on('open', function() {
+      logger.info('Connected to remote', {
+        url: url
+      });
       if (callback) {
         callback(null);
-        callback=null;
+        callback = null;
       }
     });
-    m_ws.on('error',function(err) {
-      logger.error('Error connecting to remote',{url:url,err:err.message});
+    m_ws.on('error', function(err) {
+      logger.error('Error connecting to remote', {
+        url: url,
+        err: err.message
+      });
       if (callback) {
-        callback('Websocket error: '+err.message);
-        callback=null;
+        callback('Websocket error: ' + err.message);
+        callback = null;
         return;
       }
     });
     setup();
   }
 
+  function call_on_close_handlers() {
+    for (var i in m_on_close_handlers) {
+      m_on_close_handlers[i]();
+    }
+  }
+
   function setup() {
-    m_ws.on('close',function() {
+    m_ws.on('close', function() {
       logger.info('Websocket closed.');
-      for (var i in m_on_close_handlers) {
-        m_on_close_handlers[i]();
-      }
+      call_on_close_handlers();
     });
-    m_ws.on('error',function(err) {
-      var msg='Websocket error: '+err.message;
+    m_ws.on('error', function(err) {
+      var msg = 'Websocket error: ' + err.message;
       logger.error(msg);
       console.error(msg);
+      call_on_close_handlers();
     });
-    m_ws.on('unexpected-response',function(err) {
-      var msg='Websocket unexpected response: '+err.message;
+    m_ws.on('unexpected-response', function(err) {
+      var msg = 'Websocket unexpected response: ' + err.message;
       logger.error(msg);
       console.error(msg);
     });
     m_ws.on('message', (message_str) => {
-      logger.info('Websocket received message',{size:message_str.length});
-      if ((opts.enforce_remote_wait_for_response)&&(!m_sent_message_since_last_response)) {
+      logger.info('Websocket received message', {
+        size: message_str.length
+      });
+      if ((opts.enforce_remote_wait_for_response) && (!m_sent_message_since_last_response)) {
         send_error_and_close_socket('Received message before sending response to last message.');
         return;
       }
-      var msg=parse_json(message_str);
+      var msg = parse_json(message_str);
       if (!msg) {
         send_error_and_close_socket('Error parsing json of message');
         return;
       }
-      m_received_response_since_last_message=true;
-      m_sent_message_since_last_response=false;
+      m_received_response_since_last_message = true;
+      m_sent_message_since_last_response = false;
       call_on_message_handlers(msg);
       check_send_queued_message();
     });
@@ -95,12 +124,14 @@ function PoliteWebSocket(opts) {
   }
 
   function send_error_and_close_socket(err) {
-    var errstr=err+'. Closing websocket.';
+    var errstr = err + '. Closing websocket.';
     logger.error(errstr);
     console.error(errstr);
-    if (m_ws.readyState==1) {
+    if (m_ws.readyState == 1) {
       // open
-      actually_send_message({error:errstr});
+      actually_send_message({
+        error: errstr
+      });
     }
     close();
   }
@@ -110,37 +141,42 @@ function PoliteWebSocket(opts) {
   }
 
   function sendMessage(X) {
-    X._timestamp=new Date();
-    if ((opts.wait_for_response)&&(!m_received_response_since_last_message)) {
-      logger.info('Sending message',{command:X.command||''});
+    X._timestamp = new Date();
+    if ((opts.wait_for_response) && (!m_received_response_since_last_message)) {
+      logger.info('Sending message', {
+        command: X.command || ''
+      });
       m_queued_messages.push(X);
-    }
-    else {
+    } else {
       actually_send_message(X);
     }
   }
+
   function actually_send_message(X) {
-    if (m_ws.readyState!=1) {
+    if (m_ws.readyState != 1) {
       // the socket is not open
       return;
     }
-    var elapsed=(new Date())-X._timestamp;
+    var elapsed = (new Date()) - X._timestamp;
     delete X['_timestamp'];
-    logger.info('Sending messages',{command:X.command,elapsed_since_queued_ms:elapsed});
-    var message_str=JSON.stringify(X);
+    logger.info('Sending messages', {
+      command: X.command,
+      elapsed_since_queued_ms: elapsed
+    });
+    var message_str = JSON.stringify(X);
     try {
       m_ws.send(message_str);
+    } catch (err) {
+      send_error_and_close_socket('Error sending websocket message: ' + err.message);
     }
-    catch(err) {
-      send_error_and_close_socket('Error sending websocket message: '+err.message);
-    }
-    m_received_response_since_last_message=false;
-    m_sent_message_since_last_response=true;
+    m_received_response_since_last_message = false;
+    m_sent_message_since_last_response = true;
   }
+
   function check_send_queued_message() {
-    if ((m_received_response_since_last_message)&&(m_queued_messages.length>0)) {
-      var msg=m_queued_messages[0];
-      m_queued_messages=m_queued_messages.slice(1);
+    if ((m_received_response_since_last_message) && (m_queued_messages.length > 0)) {
+      var msg = m_queued_messages[0];
+      m_queued_messages = m_queued_messages.slice(1);
       actually_send_message(msg);
     }
   }
@@ -149,8 +185,7 @@ function PoliteWebSocket(opts) {
 function parse_json(str) {
   try {
     return JSON.parse(str);
-  }
-  catch(err) {
+  } catch (err) {
     return null;
   }
 }
