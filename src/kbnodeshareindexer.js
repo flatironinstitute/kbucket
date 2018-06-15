@@ -41,6 +41,7 @@ function KBNodeShareIndexer(config) {
 
   var m_queued_files = {};
   var m_indexed_files = {};
+  let m_indexed_something = false;
 
   var m_file_iterator = new SteadyFileIterator(config.kbNodeDirectory());
   m_file_iterator.onUpdateFile(function(relpath, stat0) { //note: stat is not really used
@@ -87,7 +88,7 @@ function KBNodeShareIndexer(config) {
       num_indexed_files:Object.keys(m_indexed_files).length
     };
     if (JSON.stringify(report)!=JSON.stringify(s_last_report)) {
-      if (report.num_queued_files===0) {
+      if ((report.num_queued_files===0)&&(m_indexed_something)) {
         console.info(`Indexed ${report.num_indexed_files} files.`);
       }
       s_last_report=report;
@@ -131,6 +132,7 @@ function KBNodeShareIndexer(config) {
         callback(err);
         return;
       }
+      m_indexed_something=true;
       m_indexed_files[relpath]={
         prv:prv
       };
