@@ -8,13 +8,24 @@ Flatiron Institute, a divison of Simons Foundation
 
 ## Philosophy
 
-In many scientific fields it is essential to be able to exchange, share, archive, and publish experimental data. However, raw data files needed to reproduce results can be enormous. The philosophy of KBucket is to separate file contents from the files themselves, and to host data content where it most naturally lives, that is, in the lab where it was generated. By replacing large data files by tiny universal pointers called .prv files (analogous to magnet links in torrent), we open up diverse ways for sharing datasets, studies, and results.
+In many scientific fields it is essential to be able to exchange, share, archive, and publish experimental data. However, raw data files needed to reproduce results can be enormous. The philosophy of KBucket is to separate file contents from the files themselves, and to host data content where it most naturally lives, that is, in the lab where it was generated. By replacing large data files by tiny universal pointers called .prv files (analogous to magnet links in torrent), we open diverse ways for sharing datasets, studies, and results.
 
-For example, sometimes it is useful to email data to a collaborator, while other times it's nice to post it to slack, or to maintain a study on github, or share a directory structure on dropbox, or google drive, or post it to a website or forum. However, if the files are many Gigabytes or even Terabytes, many of those options become unfeasible without a system like KBucket.
+For example, sometimes it is useful to email data to a collaborator, while other times it's convenient to post it to slack, or to maintain a study on github, or share a directory structure on dropbox, or google drive, or post it to a website or forum. However, if the file sizes are many Gigabytes or even Terabytes, many of those options become unfeasible without a system like KBucket.
+
+## Installation
+
+**Supported operating systems**: Linux and OS X
+
+**Prerequisites**: Install a recent version of NodeJS. [See these instructions](https://github.com/flatironinstitute/mountainlab-js/blob/master/docs/docs_editable/prerequisites.md).
+
+After cloning this repository,
+
+```
+cd kbucket
+npm install
+```
 
 ## Overview and usage
-
-After installing kbucket on your Linux or Mac system, you can do the following:
 
 ### Sharing a directory of data with the system
 
@@ -32,27 +43,30 @@ Initializing configuration...
 
 ? Name for this KBucket share: dataset_01
 ? Are sharing this data for scientific research purposes (yes/no)? yes
-? Brief description of this KBucket share: An example dataset
+? Brief description of this KBucket share: Example kbucket data directory.
 ? Owner's name (i.e., your full name): Jeremy Magland
 ? Owner's email (i.e., your email): my@email.edu
 ? Share all data recursively contained in the directory /home/magland/kbucket_data/datasets/dataset_01? (yes/no) yes
+? Listen url for this hub (use . for http://localhost:[port]): .
 ? Connect to hub: https://kbucket.flatironinstitute.org
 
-Listening on port 2001
-Web interface: http://localhost:2001/bad81d93d623/web
+kbucket-share is running http on port 2000
 Connecting to parent hub: https://kbucket.flatironinstitute.org
-Connected to parent hub: https://kbucket.flatironinstitute.org
+Starting indexing...
+Connected to parent hub: kbucket.flatironinstitute.org
+Web interface: https://kbucketgui.herokuapp.com/?share=cf59975225e0
+Indexed 7 files.
 ```
 
 Let's go through what all this means, and what has actually happened.
 
-I am now hosting a new kbucket share (kb-share), which allows other researchers to access the files within this shared directory provided that they know the SHA-1 hashes of those files (or have the corresponding .prv files). Here are some details on the configuration options:
+I am now hosting a new kbucket share (kb-share), which allows other researchers to access the files within this shared directory provided that they know the ID of the share (in this case `cf59975225e0`) or the SHA-1 hashes of those files (or the corresponding .prv files). Here are some details on the configuration options:
 
 **Name for the kb-share.** This is simply a name that could be useful for logging or other miscellaneous purposes.
 
 **Sharing for scientific research purposes?** This system is intended only for scientific research purposes, and therefore users are required to type "yes". We don't want people using KBucket to share illegal media content, for example. It's not easy to enforce this, but at least we make it clear that this would be a no-no.
 
-**Brief description.** Not essential, just could be useful to have a description of the kb-share.
+**Brief description.** It is useful to report a description of the kb-share.
 
 **Owner's name and email.** If a particular kb-share is acting suspiciously, it's helpful to be able to contact that user by e-mail, as a warning, before blacklisting particular shares.
 
@@ -60,7 +74,7 @@ I am now hosting a new kbucket share (kb-share), which allows other researchers 
 
 **Connect to hub.** This crucial field specifies the url of the kbucket hub we are connecting to. More about hubs below.
 
-KBucket will create a new directory called .kbucket within this shared directory where it will store the configuration as well as a private/public RSA PEM key pair. The configuration options entered are contained in the .kbucket/kbnode.json file and can be edited by hand.
+KBucket will create a new directory called .kbucket within this shared directory where it will store the configuration as well as a private/public RSA PEM key pair. The configuration options entered are contained in the .kbucket/kbnode.json file and can be edited by hand if needed.
 
 To stop sharing the directory, simply use [ctrl]+c to cancel the process. To begin sharing again, use the above command. The configuration will be remembered as the default, but you will be prompted to verify the answers again, unless you use the --auto flag as follows:
 
@@ -101,15 +115,11 @@ It is also possible to create a .prvdir file encapsulating the .prv information 
 kb-prv-create /path/to/data/directory directory.prvdir
 ```
 
-This creates a relatively small JSON text file that can be also be shared with colleagues. Downloading the entire directory may then be accomplished as follows:
-
-```
-kb-prv-download directory.prvdir directory_copy
-```
+This creates a relatively small JSON text file that can be also be shared with colleagues, and integrated into user interfaces or processing pipelines.
 
 ### What's actually happening with the data?
 
-Are you interested to know how the data was transferred from one computer to another? Of course you are. Note that the .prv file contains no information about the computer it was created on. No ip addresses, routing information, etc. It simply contains the SHA-1 hash, the size of the file, and a couple other fields for convenience. Since we assume that the SHA-1 hash is sufficient to uniquely identify the file, that is the only piece of information needed to locate and retrieve the file content. This is useful because sometimes we need to change the names of files and directories, or move data from one computer to another, or replicate data on several servers. 
+Note that the .prv file contains no information about the computer it was created on. No ip addresses, routing information, etc. It simply contains the SHA-1 hash, the size of the file, and a couple other fields for convenience. Since we assume that the SHA-1 hash is sufficient to uniquely identify the file, that is the only piece of information needed to locate and retrieve the file content. This is useful because sometimes we need to change the names of files and directories, or move data from one computer to another, or replicate data on several servers. 
 
 ### Shares and hubs: the KBucket network
 
@@ -127,7 +137,7 @@ There is opportunity for quite a bit of optimization in this framework in terms 
 
 When creating a new kb-share, one of the configuration options is to specify the URL for the parent kb-hub. By default this is the root node hosted by us. But there are several reasons why this is not ideal. First, if you are behind a firewall, then all content transferred outside of your internal network will need to pass through our hub (might become slow). Second, you may not trust the stability of our server. Third, you may share data with colleagues on a nearby or faster network. In general it does not make sense for the most kb-shares to be directly connected to the same root node. Therefore, you will probably want to direct your share to one of our sub-hubs (to be specified later), or to simply host your own.
 
-The first step is to determine a server that you will use to host the hub. Ideally this should be a computer with a port open to the wider internet, but this is not a strict requirement. For example, if you primarily need to share files within your own organization, then a hub within the firewall could be useful. Also, if you want to use your hub to access data from web applications, you should also get a SSL certificate for your server/hub so that you can serve content via https (web pages that are served over https can only access content from servers that are also running https).
+The first step is to determine a server that you will use to host the hub. Ideally this should be a computer with a port open to the wider internet, but this is not a strict requirement. For example, if you primarily need to share files within your own organization, then a hub within the firewall could be useful. Also, if you want to use your hub to access data from web applications, you should also get a SSL certificate for your server/hub so that you can serve content via https (web pages that are served over https can only access content from servers that are also running https [question: is this really true?]).
 
 Configuring a kb-hub is very much like configuring a kb-share. First create a directory to be associated with your hub and then run
 
@@ -140,19 +150,22 @@ Again, the system will guide you through an interactive configuration, for examp
 
 ```
 magland@dub:~/kbucket_hubs/hub1$ kbucket-hub .
+Initializing configuration...
 
 ? Name for this KBucket hub: hub1
 ? Are you hosting this hub for scientific research purposes (yes/no)? yes
 ? Brief description of this KBucket hub: hub1
 ? Owner's name (i.e., your full name): Jeremy Magland
-? Owner's email (i.e., your email): my@email.edu
+? Owner's email (i.e., your email): my@email.edue
 ? Listen port for this hub: 3240
 ? Listen url for this hub (use . for http://localhost:[port]): .
 ? Parent hub url (use . for none): https://kbucket.flatironinstitute.org
 
 kbucket-hub is running http on port 3240
 Connecting to parent hub: https://kbucket.flatironinstitute.org
-Connected to parent hub: https://kbucket.flatironinstitute.org
+Connected to parent hub: kbucket.flatironinstitute.org
+Web interface: https://kbucketgui.herokuapp.com/?hub=dbb538702881
+
 ```
 
 Many of the configuration fields are the same as for a share, but there are a couple of new options:
