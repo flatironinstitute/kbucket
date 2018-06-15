@@ -53,6 +53,7 @@ function KBNode(kbnode_directory, kbnode_type) {
 
     // for both types
     steps.push(create_config_if_needed);
+    steps.push(generate_pem_keys_and_id_if_needed);
     steps.push(initialize_config);
     steps.push(run_interactive_config);
     if (!opts.clone_only) {
@@ -92,6 +93,23 @@ function KBNode(kbnode_directory, kbnode_type) {
       if (!m_config.configDirExists()) {
         console.info(`Creating kbucket ${kbnode_type} configuration in ${m_config.kbNodeDirectory()}/.kbucket ...`);
         m_config.createNew(kbnode_type, opts, function(err) {
+          if (err) {
+            callback(err);
+            return;
+          }
+          callback(null);
+        });
+      } else {
+        callback(null);
+      }
+    }
+
+    function generate_pem_keys_and_id_if_needed(callback) {
+      var private_key_fname=m_config.configDir()+'/private.pem';
+      var public_key_fname=m_config.configDir()+'/public.pem';
+      if ((!fs.existsSync(public_key_fname))&&(!fs.existsSync(private_key_fname))) {
+        console.info('Creating private/public keys ...');
+        m_config.generatePemFilesAndId(opts,function(err) {
           if (err) {
             callback(err);
             return;

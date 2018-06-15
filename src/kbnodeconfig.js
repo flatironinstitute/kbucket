@@ -21,6 +21,9 @@ function KBNodeConfig(kbnode_directory) {
   this.createNew = function(kbnode_type, opts, callback) {
     createNew(kbnode_type, opts, callback);
   };
+  this.generatePemFilesAndId =function(opts,callback) {
+    generate_pem_files_and_kbnode_id(opts,callback);
+  };
   this.initialize = function(callback) {
     initialize(callback);
   };
@@ -108,10 +111,8 @@ function KBNodeConfig(kbnode_directory) {
       return;
     }
     fs.mkdirSync(kbnode_directory + '/.kbucket');
-    generate_pem_files_and_kbnode_id(opts, function() {
-      set_config('kbnode_type', kbnode_type);
-      callback(null);
-    });
+    set_config('kbnode_type', kbnode_type);
+    callback(null);
   }
 
   function initialize(callback) {
@@ -359,6 +360,10 @@ function KBNodeConfig(kbnode_directory) {
 
   function generate_pem_files_and_kbnode_id(opts, callback) {
     if (!opts.clone_only) {
+      if (get_config('kbnode_id')) {
+        callback('Cannot generate public/private keys because node id has already been set.');
+        return;
+      }
       var pair = keypair();
       var private_key = pair.private;
       var public_key = pair.public;
