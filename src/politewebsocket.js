@@ -39,6 +39,9 @@ function PoliteWebSocket(opts) {
   this.onClose = function(handler) {
     m_on_close_handlers.push(handler);
   };
+  this.onByteCount=function(handler) {
+    m_on_byte_count_handlers.push(handler);
+  };
 
   var m_received_response_since_last_message = true;
   var m_sent_message_since_last_response = true;
@@ -46,7 +49,10 @@ function PoliteWebSocket(opts) {
   var m_ws = null;
   var m_on_message_handlers = [];
   var m_on_close_handlers = [];
+  var m_on_byte_count_handlers = [];
   var m_wait_to_send = true;
+  let m_bytes_in_to_report = 0;
+  let m_bytes_out_to_report = 0;
 
   function connectToRemote(url, callback) {
     m_ws = new WebSocket(url, {
@@ -98,9 +104,7 @@ function PoliteWebSocket(opts) {
       console.error(msg);
     });
     m_ws.on('message', (message_str) => {
-      logger.info('Websocket received message', {
-        size: message_str.length
-      });
+      report_bytes_in(message_str.length);
       if ((opts.enforce_remote_wait_for_response) && (!m_sent_message_since_last_response)) {
         send_error_and_close_socket('Received message before sending response to last message.');
         return;
@@ -158,14 +162,11 @@ function PoliteWebSocket(opts) {
       return;
     }
     var elapsed = (new Date()) - X._timestamp;
-    delete X['_timestamp'];
-    logger.info('Sending messages', {
-      command: X.command,
-      elapsed_since_queued_ms: elapsed
-    });
+    delete X._timestamp;
     var message_str = JSON.stringify(X);
     try {
       m_ws.send(message_str);
+      report_bytes_out(message_str.length);
     } catch (err) {
       send_error_and_close_socket('Error sending websocket message: ' + err.message);
     }
@@ -178,6 +179,33 @@ function PoliteWebSocket(opts) {
       var msg = m_queued_messages[0];
       m_queued_messages = m_queued_messages.slice(1);
       actually_send_message(msg);
+    }
+  }
+
+  function report_bytes_in(num_bytes) {
+    m_bytes_in_to_report+=num_bytes;
+    schedule_report_bytes();
+  }
+  function report_bytes_out(num_bytes) {
+    m_bytes_out_to_report+=num_bytes;
+    schedule_report_bytes();
+  }
+  let m_report_bytes_scheduled=false;
+  function schedule_report_bytes() {
+    if (m_report_bytes_scheduled) return;
+    m_report_bytes_scheduled = true;
+    setTimeout(function() {
+      m_report_bytes_scheduled = false;
+      do_report_bytes();
+    }, 1000);
+  }
+  function do_report_bytes() {
+    if ((m_bytes_in_to_report)||(m_bytes_out_to_report)) {
+      for (var i in m_on_byte_count_handlers) {
+        m_on_byte_count_handlers[i](m_bytes_in_to_report,m_bytes_out_to_report);
+      }
+      m_bytes_in_to_report=0;
+      m_bytes_out_to_report=0;
     }
   }
 }

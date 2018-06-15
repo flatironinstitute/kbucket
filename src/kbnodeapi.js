@@ -15,6 +15,7 @@ function KBNodeApi(config, context) {
   var m_context = context;
 
   function handle_nodeinfo(kbnode_id, req, res) {
+    config.incrementMetric('num_requests_nodeinfo');
     allow_cross_domain_requests(req, res);
     if (m_config.kbNodeId() != kbnode_id) {
       route_http_request_to_node(kbnode_id, `${kbnode_id}/api/nodeinfo`, req, res);
@@ -63,6 +64,7 @@ function KBNodeApi(config, context) {
   }
 
   function handle_readdir(kbshare_id, subdirectory, req, res) {
+    config.incrementMetric('num_requests_readdir');
     logger.info('handle_readdir', {
       kbshare_id: kbshare_id,
       subdirectory: subdirectory
@@ -166,6 +168,7 @@ function KBNodeApi(config, context) {
   }
 
   function handle_download(kbshare_id, filename, req, res) {
+    config.incrementMetric('num_requests_download');
     logger.info('handle_download', {
       kbshare_id: kbshare_id,
       filename: filename
@@ -214,6 +217,7 @@ function KBNodeApi(config, context) {
   }
 
   function handle_find(sha1, filename, req, res) {
+    config.incrementMetric('num_requests_find');
     logger.info('handle_find', {
       sha1: sha1,
       filename: filename

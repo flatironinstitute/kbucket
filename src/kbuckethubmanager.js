@@ -30,132 +30,130 @@ function KBucketHubManager(config) {
   this.nodeDataForParent = function() {
     return nodeDataForParent();
   };
-  this.routeHttpRequestToNode=function(kbnode_id,path,req,res) {
-    routeHttpRequestToNode(kbnode_id,path,req,res);
+  this.routeHttpRequestToNode = function(kbnode_id, path, req, res) {
+    routeHttpRequestToNode(kbnode_id, path, req, res);
   };
 
   // The share manager (see KBucketConnectedShareManager)
-  var m_connected_share_manager = new KBConnectedShareManager();
+  var m_connected_share_manager = new KBConnectedShareManager(config);
   // The connected child hub manager (see KBConnectedChildHubManager)
   var m_connected_child_hub_manager = new KBConnectedChildHubManager(config);
 
-  function findFile(opts,callback) {
-    find_shares_with_file(opts,function(err,results) {
+  function findFile(opts, callback) {
+    find_shares_with_file(opts, function(err, results) {
       if (err) {
         callback(err);
         return;
       }
-      if (results.length==0) {
-        callback(null,{
-          success:true,
-          found:false,
-          urls:[]
+      if (results.length == 0) {
+        callback(null, {
+          success: true,
+          found: false,
+          urls: []
         });
         return;
       }
-      var node_data0=nodeDataForParent();
-      var urls=[];
-      async.eachSeries(results,function(result,cb) {
-        var kbshare_id=result.kbshare_id;
-        var share0=node_data0.descendant_nodes[kbshare_id];
+      var node_data0 = nodeDataForParent();
+      var urls = [];
+      async.eachSeries(results, function(result, cb) {
+        var kbshare_id = result.kbshare_id;
+        var share0 = node_data0.descendant_nodes[kbshare_id];
         if (share0.listen_url) {
-          const url0=share0.listen_url+'/'+kbshare_id+'/download/'+result.path;
+          const url0 = share0.listen_url + '/' + kbshare_id + '/download/' + result.path;
           urls.push(url0);
         }
-        var visited={}; //prevent infinite loop
-        var hub_id=share0.parent_kbnode_id;
+        var visited = {}; //prevent infinite loop
+        var hub_id = share0.parent_kbnode_id;
         while (hub_id) {
           if (visited[hub_id])
             break;
-          visited[hub_id]=true;
+          visited[hub_id] = true;
           if (hub_id in node_data0.descendant_nodes) {
-            var hub0=node_data0.descendant_nodes[hub_id];
+            var hub0 = node_data0.descendant_nodes[hub_id];
             if (hub0.listen_url) {
-              const url0=hub0.listen_url+'/'+kbshare_id+'/download/'+result.path;
+              const url0 = hub0.listen_url + '/' + kbshare_id + '/download/' + result.path;
               urls.push(url0);
             }
-            hub_id=hub0.parent_kbnode_id;
+            hub_id = hub0.parent_kbnode_id;
+          } else {
+            hub_id = null;
           }
-          else {
-            hub_id=null;
-          }
-        }
-        {
+        } {
           if (config.listenUrl()) {
-            const url0=config.listenUrl()+'/'+kbshare_id+'/download/'+result.path;
+            const url0 = config.listenUrl() + '/' + kbshare_id + '/download/' + result.path;
             urls.push(url0);
           }
         }
         cb();
-      },function() {
-        callback(null,{
-          success:true,
-          found:true,
-          urls:urls,
-          results:results
+      }, function() {
+        callback(null, {
+          success: true,
+          found: true,
+          urls: urls,
+          results: results
         });
       });
     });
   }
 
-  function find_shares_with_file(opts,callback) {
+  function find_shares_with_file(opts, callback) {
     if (!is_valid_sha1(opts.sha1)) {
       // Not a valid sha1 hash
       callback(`Invalid sha1: ${opts.sha1}`);
       return;
     }
-    m_connected_share_manager.findSharesWithFile(opts, function(err,results1) {
+    m_connected_share_manager.findSharesWithFile(opts, function(err, results1) {
       if (err) {
         callback(err);
         return;
       }
-      m_connected_child_hub_manager.findSharesWithFile(opts,function(err,results2) {
+      m_connected_child_hub_manager.findSharesWithFile(opts, function(err, results2) {
         if (err) {
           callback(err);
           return;
         }
-        var results=[];
+        var results = [];
         for (let i in results1) {
           results.push(results1[i]);
         }
         for (let i in results2) {
           results.push(results2[i]);
         }
-        callback(null,results);
+        callback(null, results);
       });
     });
   }
 
   function nodeDataForParent() {
-    var data={
-      kbnode_id:config.kbNodeId(),
-      descendant_nodes:{}
+    var data = {
+      kbnode_id: config.kbNodeId(),
+      descendant_nodes: {}
     };
-    var kbshare_ids=m_connected_share_manager.connectedShareIds();
+    var kbshare_ids = m_connected_share_manager.connectedShareIds();
     for (let ii in kbshare_ids) {
-      var kbshare_id=kbshare_ids[ii];
-      var SS=m_connected_share_manager.getConnectedShare(kbshare_id);
-      data.descendant_nodes[kbshare_id]={
-        kbnode_id:kbshare_id,
-        parent_kbnode_id:config.kbNodeId(),
-        listen_url:SS.listenUrl(),
-        kbnode_type:'share'
+      var kbshare_id = kbshare_ids[ii];
+      var SS = m_connected_share_manager.getConnectedShare(kbshare_id);
+      data.descendant_nodes[kbshare_id] = {
+        kbnode_id: kbshare_id,
+        parent_kbnode_id: config.kbNodeId(),
+        listen_url: SS.listenUrl(),
+        kbnode_type: 'share'
       };
     }
-    var kbhub_ids=m_connected_child_hub_manager.connectedChildHubIds();
+    var kbhub_ids = m_connected_child_hub_manager.connectedChildHubIds();
     for (let ii in kbhub_ids) {
-      var kbhub_id=kbhub_ids[ii];
-      var HH=m_connected_child_hub_manager.getConnectedChildHub(kbhub_id);
-      data.descendant_nodes[kbhub_id]={
-        kbnode_id:kbhub_id,
-        parent_kbnode_id:config.kbNodeId(),
-        listen_url:HH.listenUrl(),
-        kbnode_type:'hub'
+      var kbhub_id = kbhub_ids[ii];
+      var HH = m_connected_child_hub_manager.getConnectedChildHub(kbhub_id);
+      data.descendant_nodes[kbhub_id] = {
+        kbnode_id: kbhub_id,
+        parent_kbnode_id: config.kbNodeId(),
+        listen_url: HH.listenUrl(),
+        kbnode_type: 'hub'
       };
-      var data0=HH.childNodeData();
-      data0.descendant_nodes=data0.descendant_nodes||{};
+      var data0 = HH.childNodeData();
+      data0.descendant_nodes = data0.descendant_nodes || {};
       for (let id in data0.descendant_nodes) {
-        data.descendant_nodes[id]=data0.descendant_nodes[id];
+        data.descendant_nodes[id] = data0.descendant_nodes[id];
       }
     }
     return data;
@@ -220,35 +218,35 @@ function KBucketHubManager(config) {
   }
   */
 
-  function routeHttpRequestToNode(kbnode_id,path,req,res) {
-    var SS=m_connected_share_manager.getConnectedShare(kbnode_id);
+  function routeHttpRequestToNode(kbnode_id, path, req, res) {
+    var SS = m_connected_share_manager.getConnectedShare(kbnode_id);
     if (SS) {
-      SS.processHttpRequest(path,req,res);
+      SS.processHttpRequest(path, req, res);
       return;
     }
-    const HH0=m_connected_child_hub_manager.getConnectedChildHub(kbnode_id);
+    const HH0 = m_connected_child_hub_manager.getConnectedChildHub(kbnode_id);
     if (HH0) {
-      HH0.processHttpRequest(path,req,res);
+      HH0.processHttpRequest(path, req, res);
       return;
     }
-    var ids=m_connected_child_hub_manager.connectedChildHubIds();
+    var ids = m_connected_child_hub_manager.connectedChildHubIds();
     for (let ii in ids) {
-      var id=ids[ii];
-      const HH_child=m_connected_child_hub_manager.getConnectedChildHub(id);
-      var data0=HH_child.childNodeData();
-      var dn0=data0.descendant_nodes||{};
+      var id = ids[ii];
+      const HH_child = m_connected_child_hub_manager.getConnectedChildHub(id);
+      var data0 = HH_child.childNodeData();
+      var dn0 = data0.descendant_nodes || {};
       if (kbnode_id in dn0) {
-        HH_child.processHttpRequest(path,req,res);
+        HH_child.processHttpRequest(path, req, res);
         return;
       }
     }
     res.status(500).send({
-      error: 'Unable to locate node with id: '+kbnode_id
+      error: 'Unable to locate node with id: ' + kbnode_id
     });
   }
 }
 
-function KBConnectedShareManager() {
+function KBConnectedShareManager(config) {
   // Manage a collection of KBConnectedShare objects, each representing a connected share (or computer running kbucket-share)
   this.addConnectedShare = function(connection_to_child_node, callback) {
     addConnectedShare(connection_to_child_node, callback);
@@ -259,8 +257,8 @@ function KBConnectedShareManager() {
   this.getConnectedShare = function(kbnode_id) {
     return m_connected_shares[kbnode_id] || null;
   };
-  this.findSharesWithFile=function(opts,callback) {
-    findSharesWithFile(opts,callback);
+  this.findSharesWithFile = function(opts, callback) {
+    findSharesWithFile(opts, callback);
   };
 
   var m_connected_shares = {};
@@ -286,7 +284,7 @@ function KBConnectedShareManager() {
     });
 
     // create a new KBConnectedShare object, and pass in the connection object
-    m_connected_shares[kbnode_id] = new KBConnectedShare(connection_to_child_node);
+    m_connected_shares[kbnode_id] = new KBConnectedShare(connection_to_child_node, config);
     callback(null);
   }
 
@@ -297,7 +295,7 @@ function KBConnectedShareManager() {
       return;
     }
     // actually remove it
-    var logmsg=`Removing child share: ${kbnode_id}`;
+    var logmsg = `Removing child share: ${kbnode_id}`;
     logger.info(logmsg);
     console.info(logmsg);
     delete m_connected_shares[kbnode_id];
@@ -307,7 +305,7 @@ function KBConnectedShareManager() {
     // Find a file by checking all of the connected shares
     var kbnode_ids = Object.keys(m_connected_shares); // all the share keys in this manager
 
-    var results=[];
+    var results = [];
 
     // Loop sequentially through each share key
     // TODO: shall we allow this to be parallel / asynchronous?
@@ -321,9 +319,9 @@ function KBConnectedShareManager() {
       SS.findFile(opts, function(err0, resp0) {
         if ((!err0) && (resp0.found)) {
           results.push({
-            kbshare_id:kbnode_id,
-            size:resp0.size,
-            path:resp0.path
+            kbshare_id: kbnode_id,
+            size: resp0.size,
+            path: resp0.path
           });
         }
         cb(); // go to the next one
@@ -335,7 +333,7 @@ function KBConnectedShareManager() {
   }
 }
 
-function KBConnectedShare(connection_to_child_node) {
+function KBConnectedShare(connection_to_child_node, config) {
   // Encapsulate a single share -- a connection to a computer running kbucket-share
   this.processHttpRequest = function(path, req, res) {
     processHttpRequest(path, req, res);
@@ -343,8 +341,8 @@ function KBConnectedShare(connection_to_child_node) {
   this.findFile = function(opts, callback) {
     findFile(opts, callback);
   };
-  this.listenUrl=function() {
-    var data=connection_to_child_node.childNodeRegistrationInfo();
+  this.listenUrl = function() {
+    var data = connection_to_child_node.childNodeRegistrationInfo();
     return data.listen_url;
   };
 
@@ -365,6 +363,10 @@ function KBConnectedShare(connection_to_child_node) {
 
   // todo: move this http client to the connection_to_child_node and handle all http stuff there
   var m_http_over_websocket_client = new HttpOverWebSocketClient(send_message_to_share);
+  m_http_over_websocket_client.onByteCount(function(num_bytes_in, num_bytes_out) {
+    config.incrementMetric('http_bytes_in_from_child_share', num_bytes_in);
+    config.incrementMetric('http_bytes_out_to_child_share', num_bytes_out);
+  });
 
   function send_message_to_share(msg) {
     connection_to_child_node.sendMessage(msg);
@@ -400,25 +402,24 @@ function KBConnectedShare(connection_to_child_node) {
   }
 
   function findFile(opts, callback) {
-    var data0=connection_to_child_node.childNodeData()||{};
-    var files_by_sha1=data0.files_by_sha1||{};
+    var data0 = connection_to_child_node.childNodeData() || {};
+    var files_by_sha1 = data0.files_by_sha1 || {};
     if (opts.sha1 in files_by_sha1) {
-      let ret={
-        found:true,
-        size:files_by_sha1[opts.sha1].size,
-        path:files_by_sha1[opts.sha1].path
+      let ret = {
+        found: true,
+        size: files_by_sha1[opts.sha1].size,
+        path: files_by_sha1[opts.sha1].path
       };
-      const info=connection_to_child_node.childNodeRegistrationInfo();
+      const info = connection_to_child_node.childNodeRegistrationInfo();
       const kbnode_id = connection_to_child_node.childNodeId();
       if (info.listen_url) {
         // The share computer has reported it's ip address, etc. So we'll use that as the direct url
         ret.url = `${info.listen_url}/${kbnode_id}/download/${ret.path}`;
       }
-      callback(null,ret);
-    }
-    else {
-      callback(null,{
-        found:false
+      callback(null, ret);
+    } else {
+      callback(null, {
+        found: false
       });
     }
   }
@@ -492,7 +493,7 @@ function KBConnectedChildHubManager(config) {
       return;
     }
     // actually remove it
-    var logmsg=`Removing child hub: ${kbnode_id}`;
+    var logmsg = `Removing child hub: ${kbnode_id}`;
     logger.info(logmsg);
     console.info(logmsg);
     delete m_connected_child_hubs[kbnode_id];
@@ -502,7 +503,7 @@ function KBConnectedChildHubManager(config) {
     // Find a file by checking all of the connected shares
     var kbnode_ids = Object.keys(m_connected_child_hubs); // all the share keys in this manager
 
-    var results=[];
+    var results = [];
 
     // Loop sequentially through each child hub id
     // TODO: shall we allow this to be parallel / asynchronous?
@@ -512,7 +513,7 @@ function KBConnectedChildHubManager(config) {
         cb(); // go to the next one
         return;
       }
-      SS.findSharesWithFile(opts,function(err,results0) {
+      SS.findSharesWithFile(opts, function(err, results0) {
         if (!err) {
           for (let i in results0) {
             results.push(results0[i]);
@@ -532,8 +533,8 @@ function KBConnectedChildHub(connection_to_child_node, config) {
   this.processHttpRequest = function(path, req, res) {
     processHttpRequest(path, req, res);
   };
-  this.findSharesWithFile =function(opts,callback) {
-    findSharesWithFile(opts,callback);
+  this.findSharesWithFile = function(opts, callback) {
+    findSharesWithFile(opts, callback);
   };
   this.sendMessage = function(msg) {
     connection_to_child_node.sendMessage(msg);
@@ -541,8 +542,8 @@ function KBConnectedChildHub(connection_to_child_node, config) {
   this.childNodeData = function() {
     return connection_to_child_node.childNodeData();
   };
-  this.listenUrl=function() {
-    var data=connection_to_child_node.childNodeRegistrationInfo();
+  this.listenUrl = function() {
+    var data = connection_to_child_node.childNodeRegistrationInfo();
     return data.listen_url;
   };
 
@@ -565,6 +566,10 @@ function KBConnectedChildHub(connection_to_child_node, config) {
 
   // todo: move this http client to the connection_to_child_node and handle all http stuff there
   var m_http_over_websocket_client = new HttpOverWebSocketClient(send_message_to_child_hub);
+  m_http_over_websocket_client.onByteCount(function(num_bytes_in, num_bytes_out) {
+    config.incrementMetric('http_bytes_in_from_child_hub', num_bytes_in);
+    config.incrementMetric('http_bytes_out_to_child_hub', num_bytes_out);
+  });
 
   function send_message_to_child_hub(msg) {
     connection_to_child_node.sendMessage(msg);
@@ -595,13 +600,13 @@ function KBConnectedChildHub(connection_to_child_node, config) {
   }
 
   function findSharesWithFile(opts, callback) {
-    var urlpath0=`find/${opts.sha1}/${opts.filename}`;
-    m_http_over_websocket_client.httpRequestJson(urlpath0,function(err,resp) {
+    var urlpath0 = `find/${opts.sha1}/${opts.filename}`;
+    m_http_over_websocket_client.httpRequestJson(urlpath0, function(err, resp) {
       if (err) {
         callback(err);
         return;
       }
-      callback(null,resp.results||[]);
+      callback(null, resp.results || []);
     });
   }
 

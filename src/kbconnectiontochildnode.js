@@ -53,11 +53,17 @@ function KBConnectionToChildNode(config) {
 
   function setWebSocket(socket) {
     m_child_node_socket = socket;
+    socket.onByteCount(function(num_bytes_in,num_bytes_out) {
+      config.incrementMetric('bytes_in_from_child_nodes',num_bytes_in);
+      config.incrementMetric('bytes_out_to_child_nodes',num_bytes_out);
+    });
     socket.onMessage(function(msg) {
       // the child has sent us a message
+      config.incrementMetric('messages_from_child_nodes');
       process_message_from_child_node(msg);
     });
     socket.onClose(function() {
+      config.incrementMetric('child_connections_closed');
       for (var i in m_on_close_handlers) {
         m_on_close_handlers[i]();
       }
@@ -137,6 +143,7 @@ function KBConnectionToChildNode(config) {
         }
       }
 
+      config.incrementMetric('child_node_registrations');
       m_child_node_registration_info = X.info;
 
       for (var i in m_on_registered_handlers) {
@@ -146,8 +153,9 @@ function KBConnectionToChildNode(config) {
     else if (X.command == 'report_node_data') {
       if (!X.data) {
         report_error_and_close_socket('No data field found in message');
-        return;  
+        return;
       }
+      config.incrementMetric('report_node_data_messages_from_child');
       m_child_node_data = X.data;
       m_child_node_socket.sendMessage({
         message:'ok'

@@ -11,10 +11,10 @@ const sha1 = require('node-sha1');
 
 // kbnode type = hub or share
 function KBNodeConfig(kbnode_directory) {
-  const that=this;
+  const that = this;
   this.configDir = function() {
     return m_config_dir;
-  }
+  };
   this.configDirExists = function() {
     return fs.existsSync(m_config_dir);
   };
@@ -53,29 +53,37 @@ function KBNodeConfig(kbnode_directory) {
   };
   this.setListenPort = function(port) {
     m_listen_port = port;
-  }
+  };
   this.listenPort = function() {
     return m_listen_port;
-  }
+  };
   this.listenUrl = function() {
     return listen_url();
-  }
+  };
   this.topHubUrl = function() {
     return m_top_hub_url || listen_url();
-  }
+  };
   this.setTopHubUrl = function(url) {
     if (url != m_top_hub_url) {
       m_top_hub_url = url;
       for (var i in m_on_top_hub_url_changed_handlers)
         m_on_top_hub_url_changed_handlers[i]();
     }
-  }
+  };
   this.onTopHubUrlChanged = function(handler) {
     m_on_top_hub_url_changed_handlers.push(handler);
-  }
-  this.getNodeInfo=function() {
+  };
+  this.getNodeInfo = function() {
     return getNodeInfo();
-  }
+  };
+  this.incrementMetric = function(name, increment) {
+    if (increment===undefined) increment=1;
+    m_metrics[name] = (m_metrics[name] || 0) + increment;
+    schedule_write_stats();
+  };
+  this.stats = function() {
+    return m_metrics;
+  };
 
   var m_config_dir = kbnode_directory + '/.kbucket';
   var m_config_file_path = m_config_dir + '/kbnode.json';
@@ -84,6 +92,7 @@ function KBNodeConfig(kbnode_directory) {
   var m_listen_port = 0;
   var m_top_hub_url = '';
   var m_on_top_hub_url_changed_handlers = [];
+  var m_metrics = {};
 
   function createNew(kbnode_type, opts, callback) {
     if (!fs.existsSync(kbnode_directory)) {
@@ -91,7 +100,7 @@ function KBNodeConfig(kbnode_directory) {
       return;
     }
     if (!fs.statSync(kbnode_directory).isDirectory()) {
-      callback('Not a directory: ' + share_directory);
+      callback('Not a directory: ' + kbnode_directory);
       return;
     }
     if (fs.existsSync(kbnode_directory + '/.kbucket')) {
@@ -111,7 +120,7 @@ function KBNodeConfig(kbnode_directory) {
       return;
     }
     if (!fs.statSync(kbnode_directory).isDirectory()) {
-      callback('Not a directory: ' + share_directory);
+      callback('Not a directory: ' + kbnode_directory);
       return;
     }
 
@@ -153,9 +162,9 @@ function KBNodeConfig(kbnode_directory) {
       });
       var str;
       if (m_kbnode_type == 'hub') {
-        str = 'Are you hosting this hub for scientific research purposes (yes/no)?'
+        str = 'Are you hosting this hub for scientific research purposes (yes/no)?';
       } else if (m_kbnode_type == 'share') {
-        str = 'Are sharing this data for scientific research purposes (yes/no)?'
+        str = 'Are sharing this data for scientific research purposes (yes/no)?';
       } else {
         console.error('Unexpected kbnode type: ' + m_kbnode_type);
         process.exit(-1);
@@ -199,7 +208,7 @@ function KBNodeConfig(kbnode_directory) {
         questions.push({
           type: 'input',
           name: 'listen_url',
-          message: `Listen url for this hub (use . for http://localhost:[port]):`,
+          message: 'Listen url for this hub (use . for http://localhost:[port]):',
           default: get_config('listen_url') || '.',
           validate: is_valid_url
         });
@@ -216,14 +225,14 @@ function KBNodeConfig(kbnode_directory) {
         questions.push({
           type: 'input',
           name: 'listen_port',
-          message: `Listen port for this hub:`,
+          message: 'Listen port for this hub:',
           default: get_config('listen_port') || 3240,
           validate: is_valid_port
         });
         questions.push({
           type: 'input',
           name: 'listen_url',
-          message: `Listen url for this hub (use . for http://localhost:[port]):`,
+          message: 'Listen url for this hub (use . for http://localhost:[port]):',
           default: get_config('listen_url') || '.',
           validate: is_valid_url
         });
@@ -249,7 +258,6 @@ function KBNodeConfig(kbnode_directory) {
       }
     }
 
-    var final_answers = {};
     if (opts.auto_use_defaults) {
       var questions2 = [];
       for (var i in questions) {
@@ -270,9 +278,9 @@ function KBNodeConfig(kbnode_directory) {
           set_config(qq.name, answers[qq.name]);
         }
         if ('owner' in answers)
-          user_settings.set('default_owner', answers['owner']);
+          user_settings.set('default_owner', answers.owner);
         if ('owner_email' in answers)
-          user_settings.set('default_owner_email', answers['owner_email']);
+          user_settings.set('default_owner_email', answers.owner_email);
         callback();
       });
   }
@@ -292,7 +300,7 @@ function KBNodeConfig(kbnode_directory) {
       return true;
     } else if (str == 'no') {
       console.info('');
-      console.info(`KBucket should only be used to share data for scientific research purposes.`);
+      console.info('KBucket should only be used to share data for scientific research purposes.');
       process.exit(-1);
       //return 'kbucket should only be used to share data used for scientific research'
     } else {
@@ -319,7 +327,7 @@ function KBNodeConfig(kbnode_directory) {
 
   function is_valid_email(str) {
     if (!email_validator.validate(str)) {
-      return 'Invalid email.'
+      return 'Invalid email.';
     }
     return true;
   }
@@ -412,8 +420,9 @@ function KBNodeConfig(kbnode_directory) {
   function prv_cache_object_matches_file(obj, path) {
     // used for kbnode_type='share'
     if (!obj) return false;
+    let stat0;
     try {
-      var stat0 = require('fs').statSync(path);
+      stat0 = require('fs').statSync(path);
     } catch (err) {
       return false;
     }
@@ -522,11 +531,31 @@ function KBNodeConfig(kbnode_directory) {
   }
 
   function safe_remove_file(cache_filepath) {
-    require('fs').unlink(cache_filepath, function(err) {});
+    try {
+      require('fs').unlinkSync(cache_filepath);
+    } catch (err) {
+      console.warn('Unable to remove file: ' + cache_filepath);
+    }
+  }
+
+  let m_write_stats_scheduled = false;
+
+  function schedule_write_stats() {
+    if (m_write_stats_scheduled) return;
+    m_write_stats_scheduled = true;
+    setTimeout(function() {
+      m_write_stats_scheduled = false;
+      do_write_stats();
+    }, 1000);
+  }
+
+  function do_write_stats() {
+    write_json_file(m_config_dir + '/stats.json', m_metrics);
   }
 }
 
 
+/*
 function run_command_and_read_stdout(cmd, callback) {
   var P;
   try {
@@ -548,6 +577,7 @@ function run_command_and_read_stdout(cmd, callback) {
     callback(`Problem running ${cmd}: ${err.message}`);
   })
 }
+*/
 
 function parse_json(str) {
   try {
@@ -559,7 +589,7 @@ function parse_json(str) {
 
 function read_json_file(fname) {
   try {
-    var txt = require('fs').readFileSync(fname, 'utf8')
+    var txt = require('fs').readFileSync(fname, 'utf8');
     return parse_json(txt);
   } catch (err) {
     return null;
@@ -568,7 +598,7 @@ function read_json_file(fname) {
 
 function read_text_file(fname) {
   try {
-    var txt = require('fs').readFileSync(fname, 'utf8')
+    var txt = require('fs').readFileSync(fname, 'utf8');
     return txt;
   } catch (err) {
     return null;

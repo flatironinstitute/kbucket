@@ -33,19 +33,31 @@ function KBConnectionToParentHub(config) {
       wait_for_response: true,
       enforce_remote_wait_for_response: false
     });
+    m_parent_hub_socket.onByteCount(function(num_bytes_in,num_bytes_out) {
+      config.incrementMetric('bytes_in_from_parent_hub',num_bytes_in);
+      config.incrementMetric('bytes_out_to_parent_hub',num_bytes_out);
+    });
     m_http_over_websocket_server = new HttpOverWebSocketServer(sendMessage);
+    m_http_over_websocket_server.onByteCount(function(bytes_in,bytes_out) {
+      config.incrementMetric('http_bytes_in_from_parent_hub',num_bytes_in);
+      config.incrementMetric('http_bytes_out_to_parent_hub',num_bytes_out);
+    });
     m_http_over_websocket_server.setForwardUrl(config.listenUrl());
     m_parent_hub_socket.connectToRemote(parent_hub_ws_url, function(err) {
       if (err) {
+        config.incrementMetric('parent_hub_connections_failed');
         callback(err);
         return;
       }
       register_with_parent_hub(function(err) {
         if (err) {
+          config.incrementMetric('parent_hub_registrations_failed');
           callback(err);
           return;
         }
+        config.incrementMetric('parent_hub_connections');
         m_parent_hub_socket.onClose(function() {
+          config.incrementMetric('parent_hub_connections_closed');
           console.info(`Websocket closed.`);
           for (var i in m_on_close_handlers) {
             m_on_close_handlers[i]();
@@ -55,6 +67,7 @@ function KBConnectionToParentHub(config) {
       });
     });
     m_parent_hub_socket.onMessage(function(msg) {
+      config.incrementMetric('messages_from_parent_hub');
       process_message_from_parent_hub(msg);
     });
   }
@@ -99,6 +112,7 @@ function KBConnectionToParentHub(config) {
 
     if (msg.message_type == 'http') {
       if (m_http_over_websocket_server) {
+        config.incrementMetric('http_messages_from_parent_hub');
         m_http_over_websocket_server.processMessageFromClient(msg, function(err) {
           if (err) {
             console.error('http over websocket error: ' + err + '. Closing websocket.');

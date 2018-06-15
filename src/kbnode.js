@@ -6,12 +6,12 @@ const WebSocket = require('ws');
 const findPort = require('find-port');
 const fs = require('fs');
 const axios = require('axios');
-const REQUEST = require('request');
+//const REQUEST = require('request');
 
 const logger = require(__dirname + '/logger.js').logger();
 const KBNodeConfig = require(__dirname + '/kbnodeconfig.js').KBNodeConfig;
 const KBNodeShareIndexer = require(__dirname + '/kbnodeshareindexer.js').KBNodeShareIndexer;
-const HttpOverWebSocketServer = require(__dirname + '/httpoverwebsocket.js').HttpOverWebSocketServer;
+//const HttpOverWebSocketServer = require(__dirname + '/httpoverwebsocket.js').HttpOverWebSocketServer;
 const KBConnectionToChildNode = require(__dirname + '/kbconnectiontochildnode.js').KBConnectionToChildNode;
 const KBConnectionToParentHub = require(__dirname + '/kbconnectiontoparenthub.js').KBConnectionToParentHub;
 const KBucketHubManager = require(__dirname + '/kbuckethubmanager.js').KBucketHubManager;
@@ -40,8 +40,8 @@ function KBNode(kbnode_directory, kbnode_type) {
 
   // only used for kbnode_type='share'
   m_context.share_indexer = null;
-  if (kbnode_type=='share')
-    m_context.share_indexer=new KBNodeShareIndexer(m_config);
+  if (kbnode_type == 'share')
+    m_context.share_indexer = new KBNodeShareIndexer(m_config);
 
   // only used for kbnode_type='hub'
   m_context.hub_manager = null;
@@ -111,7 +111,7 @@ function KBNode(kbnode_directory, kbnode_type) {
   }
 
   function initialize_config(callback) {
-    console.info(`Initializing configuration...`);
+    console.info('Initializing configuration...');
     m_config.initialize(function(err) {
       if (err) {
         callback(err);
@@ -237,10 +237,6 @@ function KBNode(kbnode_directory, kbnode_type) {
       }
       return;
     }
-    console.info('Connecting to parent hub: ' + parent_hub_url);
-    logger.info('Attempting to connect to parent hub', {
-      opts: opts
-    });
     m_context.connection_to_parent_hub = new KBConnectionToParentHub(m_config);
     m_context.connection_to_parent_hub.onClose(function() {
       m_context.connection_to_parent_hub = null;
@@ -253,6 +249,15 @@ function KBNode(kbnode_directory, kbnode_type) {
         }, opts.retry_timeout_sec * 1000);
       }
     });
+
+    /////////////////////////////////////////////////////////////////////////////////////
+    console.info('Connecting to parent hub: ' + parent_hub_url);
+    logger.info('Attempting to connect to parent hub', {
+      opts: opts
+    });
+    /////////////////////////////////////////////////////////////////////////////////////
+
+
     m_context.connection_to_parent_hub.initialize(parent_hub_url, function(err) {
       if (err) {
         callback(err);
@@ -348,7 +353,7 @@ function KBNode(kbnode_directory, kbnode_type) {
 
   function download_file_from_share(relpath_on_share, destpath, opts, callback) {
     var url = `${m_kbucket_url}/${m_config.kbNodeId()}/download/${encodeURIComponent(relpath_on_share)}`;
-    download_file(url, destpath, opts, callback)
+    download_file(url, destpath, opts, callback);
   }
 
   function download_file(url, dest_fname, opts, callback) {
@@ -368,7 +373,7 @@ function KBNode(kbnode_directory, kbnode_type) {
         response.data.pipe(write_stream);
         response.data.on('end', function() {
           fs.renameSync(dest_fname + '.downloading_', dest_fname);
-          console.info(`Downloaded ${format_file_size(bytes_downloaded)} to ${dest_fname}.`)
+          console.info(`Downloaded ${format_file_size(bytes_downloaded)} to ${dest_fname}.`);
           setTimeout(function() { //dont catch an error from execution of callback
             callback(null);
           }, 0);
@@ -385,7 +390,7 @@ function KBNode(kbnode_directory, kbnode_type) {
       }
       timer = new Date();
       if (bytes_total) {
-        console.info(`Downloaded ${format_file_size(bytes_downloaded)} of ${format_file_size(bytes_total)} ...`)
+        console.info(`Downloaded ${format_file_size(bytes_downloaded)} of ${format_file_size(bytes_total)} ...`);
       } else {
         console.info(`Downloaded ${format_file_size(bytes_downloaded)} ...`);
       }
@@ -404,7 +409,7 @@ function KBNode(kbnode_directory, kbnode_type) {
   function start_indexing(callback) {
     console.info('Starting indexing...');
     if (kbnode_type != 'share') {
-      console.error('start_indexing is only for kbnode_type=share')
+      console.error('start_indexing is only for kbnode_type=share');
       process.exit(-1);
     }
     m_context.share_indexer.startIndexing(callback);
@@ -412,7 +417,7 @@ function KBNode(kbnode_directory, kbnode_type) {
 
   function start_websocket_server(callback) {
     if (kbnode_type != 'hub') {
-      console.error('start_websocket_server is only for kbnode_type=hub')
+      console.error('start_websocket_server is only for kbnode_type=hub');
       process.exit(-1);
     }
     //initialize the WebSocket server instance
@@ -424,9 +429,9 @@ function KBNode(kbnode_directory, kbnode_type) {
     wss.on('connection', (ws, req) => {
       // Logging ////////////////////////////////
       const ip = req.connection.remoteAddress;
-      var ip_forwarded_for = undefined;
+      var ip_forwarded_for;
       if (req.headers['x-forwarded-for']) {
-        ip_forwarded_for = req.headers['x-forwarded-for'].split(/\s*,\s*/)[0]
+        ip_forwarded_for = req.headers['x-forwarded-for'].split(/\s*,\s*/)[0];
       }
       logger.info('New websocket connection.', {
         ip: ip,
@@ -452,7 +457,7 @@ function KBNode(kbnode_directory, kbnode_type) {
     });
     PWS.setSocket(ws);
 
-    var CC = new KBConnectionToChildNode();
+    var CC = new KBConnectionToChildNode(m_config);
     CC.setWebSocket(PWS);
     CC.onRegistered(function() {
       logger.info('Child has registered', {
@@ -585,6 +590,7 @@ function format_file_size(size_bytes) {
   }
 }
 
+/*
 function write_text_file(fname, txt) {
   try {
     require('fs').writeFileSync(fname, txt);
@@ -593,6 +599,7 @@ function write_text_file(fname, txt) {
     return false;
   }
 }
+*/
 
 function write_json_file(fname, obj) {
   try {

@@ -12,9 +12,15 @@ function HttpOverWebSocketServer(message_sender) {
   this.setForwardUrl = function(url) {
     m_forward_url = url;
   };
+  this.onByteCount = function(handler) {
+    m_on_byte_count_handlers.push(handler);
+  };
 
   var HTTP_REQUESTS = {};
   var m_forward_url = '';
+  var m_on_byte_count_handlers = [];
+  var m_bytes_in_to_report = 0;
+  var m_bytes_out_to_report = 0;
 
   function processMessageFromClient(msg, callback) {
     process_http_message(msg, callback);
@@ -37,7 +43,7 @@ function HttpOverWebSocketServer(message_sender) {
         console.error(`No request found with id=${msg.request_id} (in http.write_request_data).`);
         return;
       }
-      var REQ = HTTP_REQUESTS[msg.request_id];
+      let REQ = HTTP_REQUESTS[msg.request_id];
       var data = Buffer.from(msg.data_base64, 'base64');
       REQ.writeRequestData(data);
     } else if (msg.command == 'http.end_request') {
@@ -45,7 +51,7 @@ function HttpOverWebSocketServer(message_sender) {
         callback(`No request found with id=${msg.request_id} (in http.end_request).`);
         return;
       }
-      var REQ = HTTP_REQUESTS[msg.request_id];
+      let REQ = HTTP_REQUESTS[msg.request_id];
       REQ.endRequest();
     } else if (msg.message == 'ok') {
       // just ok.
@@ -54,6 +60,37 @@ function HttpOverWebSocketServer(message_sender) {
       return;
     }
     callback(null);
+  }
+
+  function report_bytes_in(num_bytes) {
+    m_bytes_in_to_report += num_bytes;
+    schedule_report_bytes();
+  }
+
+  function report_bytes_out(num_bytes) {
+    m_bytes_out_to_report += num_bytes;
+    schedule_report_bytes();
+  }
+
+  let m_report_bytes_scheduled = false;
+
+  function schedule_report_bytes() {
+    if (m_report_bytes_scheduled) return;
+    m_report_bytes_scheduled = true;
+    setTimeout(function() {
+      m_report_bytes_scheduled = false;
+      do_report_bytes();
+    }, 1000);
+  }
+
+  function do_report_bytes() {
+    if ((m_bytes_in_to_report) || (m_bytes_out_to_report)) {
+      for (var i in m_on_byte_count_handlers) {
+        m_on_byte_count_handlers[i](m_bytes_in_to_report, m_bytes_out_to_report);
+      }
+      m_bytes_in_to_report = 0;
+      m_bytes_out_to_report = 0;
+    }
   }
 }
 
@@ -66,9 +103,15 @@ function HttpOverWebSocketClient(message_sender) {
   };
   this.httpRequestJson = function(path, callback) {
     httpRequestJson(path, callback);
-  }
+  };
+  this.onByteCount = function(handler) {
+    m_on_byte_count_handlers.push(handler);
+  };
 
   var m_response_handlers = {};
+  var m_on_byte_count_handlers = [];
+  var m_bytes_in_to_report = 0;
+  var m_bytes_out_to_report = 0;
 
   function processMessageFromServer(msg, callback) {
     process_http_message_from_server(msg, callback);
@@ -104,37 +147,36 @@ function HttpOverWebSocketClient(message_sender) {
     req.method = 'GET';
     req.headers = {};
     res.status = function(status_code, status_message) {
-      if (status_code!=200) {
-        respond('Error (status='+status_code+'): '+status_message);
+      if (status_code != 200) {
+        respond('Error (status=' + status_code + '): ' + status_message);
         return;
       }
     };
-    res.set=function() {
+    res.set = function() {
       //dummy
     };
-    var response_body='';
-    res.write=function(txt) {
-      response_body+=(txt+'');
-    }
-    res.end=function() {
+    var response_body = '';
+    res.write = function(txt) {
+      response_body += (txt + '');
+    };
+    res.end = function() {
       try {
-        var obj=JSON.parse(response_body);
-        respond(null,obj);
-      }
-      catch(err) {
+        var obj = JSON.parse(response_body);
+        respond(null, obj);
+      } catch (err) {
         respond('Error parsing json response.');
         return;
       }
-    }
+    };
 
     handleRequest(path, req, res);
     req.emit('end');
 
-    function respond(err,obj) {
+    function respond(err, obj) {
       if (callback) {
-        var callback2=callback;
-        callback=null;
-        callback2(err,obj);
+        var callback2 = callback;
+        callback = null;
+        callback2(err, obj);
         return;
       }
     }
@@ -163,7 +205,7 @@ function HttpOverWebSocketClient(message_sender) {
       request_id: req_id // the unique id used in all correspondence
     });
 
-    var sent=false;
+    var sent = false;
 
     req.on('data', function(data) {
       // We received some data from the client, so we'll pass it on to the server
@@ -174,6 +216,7 @@ function HttpOverWebSocketClient(message_sender) {
         data_base64: data.toString('base64'),
         request_id: req_id
       });
+      report_bytes_in(data.length);
     });
 
     req.on('end', function() {
@@ -205,12 +248,13 @@ function HttpOverWebSocketClient(message_sender) {
       if (sent) return;
       // Write response data (this data comes from the server)
       res.write(data);
+      report_bytes_out(data.length);
     }
 
     function end_response() {
       // End the response -- we are done writing -- this was triggered by a message from the server
       res.end();
-      sent=true;
+      sent = true;
     }
 
     function report_error(err) {
@@ -220,7 +264,37 @@ function HttpOverWebSocketClient(message_sender) {
       res.status(500).send({
         error: errstr
       });
-      sent=true;
+      sent = true;
+    }
+  }
+
+  function report_bytes_in(num_bytes) {
+    m_bytes_in_to_report += num_bytes;
+    schedule_report_bytes();
+  }
+
+  function report_bytes_out(num_bytes) {
+    m_bytes_out_to_report += num_bytes;
+    schedule_report_bytes();
+  }
+  let m_report_bytes_scheduled = false;
+
+  function schedule_report_bytes() {
+    if (m_report_bytes_scheduled) return;
+    m_report_bytes_scheduled = true;
+    setTimeout(function() {
+      m_report_bytes_scheduled = false;
+      do_report_bytes();
+    }, 1000);
+  }
+
+  function do_report_bytes() {
+    if ((m_bytes_in_to_report) || (m_bytes_out_to_report)) {
+      for (var i in m_on_byte_count_handlers) {
+        m_on_byte_count_handlers[i](m_bytes_in_to_report, m_bytes_out_to_report);
+      }
+      m_bytes_in_to_report = 0;
+      m_bytes_out_to_report = 0;
     }
   }
 }
@@ -252,9 +326,9 @@ function HttpRequest(forward_url, on_message_handler) {
       method: msg.method,
       uri: `${forward_url}/${msg.path}`,
       headers: msg.headers,
-      query:msg.query,
+      query: msg.query,
       followRedirect: false // important because we want the proxy server to handle it instead
-    }
+    };
     opts.headers.host = undefined; //This is important because I was having trouble with the SSL certificates getting confused
     m_request = request(opts);
     m_request.on('response', function(resp) {
@@ -282,6 +356,7 @@ function HttpRequest(forward_url, on_message_handler) {
       return;
     }
     m_request.write(data);
+    report_bytes_out(data.length);
   }
 
   function endRequest() {
