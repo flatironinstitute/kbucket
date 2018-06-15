@@ -181,7 +181,8 @@ function KBNodeConfig(kbnode_directory) {
         name: 'description',
         message: `Brief description of this KBucket ${m_kbnode_type}:`,
         default: get_config('description') || '',
-        validate: is_valid_description
+        validate: is_valid_description,
+        optional:false
       });
       questions.push({
         type: 'input',
@@ -199,11 +200,12 @@ function KBNodeConfig(kbnode_directory) {
       });
       if (m_kbnode_type == 'share') {
         questions.push({
-          type: 'list',
+          //type: 'list',
+          type: 'input',
           name: 'confirm_share',
           message: `Share all data recursively contained in the directory ${kbnode_directory}? (yes/no)`,
-          choices: ['yes', 'no'],
-          default: get_config('confirm_share') || 'no',
+          //choices: ['yes', 'no'],
+          default: get_config('confirm_share') || '',
         });
         questions.push({
           type: 'input',
@@ -259,16 +261,19 @@ function KBNodeConfig(kbnode_directory) {
     }
 
     if (opts.auto_use_defaults) {
-      var questions2 = [];
       for (var i in questions) {
         var qq = questions[i];
         if (qq.default) {
           set_config(qq.name, qq.default);
         } else {
-          questions2.push(qq);
+          if (!qq.optional) {
+            console.error('Aborting due to missing required field: '+qq.name);
+            process.exit(-1);
+          };
         }
       }
-      questions = questions2;
+      callback();
+      return;
     }
 
     inquirer.prompt(questions)
