@@ -12,7 +12,7 @@ function PoliteWebSocket(opts) {
   // use one of the following two methods to initialize
   this.connectToRemote = function(url, callback) {
     connectToRemote(url, callback);
-  }
+  };
   this.setSocket = function(ws) {
     m_ws = ws;
     setup();
@@ -24,13 +24,15 @@ function PoliteWebSocket(opts) {
   };
   this.close = function() {
     close();
-  }
+  };
   this.sendErrorAndClose = function(err) {
     send_error_and_close_socket(err);
   };
+  /*
   this.forwardHttpRequest = function(req, res) {
     forward_http_request(req, res);
   };
+  */
 
   // event handlers
   this.onMessage = function(handler) {
@@ -39,7 +41,7 @@ function PoliteWebSocket(opts) {
   this.onClose = function(handler) {
     m_on_close_handlers.push(handler);
   };
-  this.onByteCount=function(handler) {
+  this.onByteCount = function(handler) {
     m_on_byte_count_handlers.push(handler);
   };
 
@@ -50,9 +52,10 @@ function PoliteWebSocket(opts) {
   var m_on_message_handlers = [];
   var m_on_close_handlers = [];
   var m_on_byte_count_handlers = [];
-  var m_wait_to_send = true;
+  //var m_wait_to_send = true;
   let m_bytes_in_to_report = 0;
   let m_bytes_out_to_report = 0;
+  let m_last_message_timestamp = new Date();
 
   function connectToRemote(url, callback) {
     m_ws = new WebSocket(url, {
@@ -105,6 +108,7 @@ function PoliteWebSocket(opts) {
     });
     m_ws.on('message', (message_str) => {
       report_bytes_in(message_str.length);
+      m_last_message_timestamp = new Date();
       if ((opts.enforce_remote_wait_for_response) && (!m_sent_message_since_last_response)) {
         send_error_and_close_socket('Received message before sending response to last message.');
         return;
@@ -183,14 +187,16 @@ function PoliteWebSocket(opts) {
   }
 
   function report_bytes_in(num_bytes) {
-    m_bytes_in_to_report+=num_bytes;
+    m_bytes_in_to_report += num_bytes;
     schedule_report_bytes();
   }
+
   function report_bytes_out(num_bytes) {
-    m_bytes_out_to_report+=num_bytes;
+    m_bytes_out_to_report += num_bytes;
     schedule_report_bytes();
   }
-  let m_report_bytes_scheduled=false;
+  let m_report_bytes_scheduled = false;
+
   function schedule_report_bytes() {
     if (m_report_bytes_scheduled) return;
     m_report_bytes_scheduled = true;
@@ -199,15 +205,34 @@ function PoliteWebSocket(opts) {
       do_report_bytes();
     }, 1000);
   }
+
   function do_report_bytes() {
-    if ((m_bytes_in_to_report)||(m_bytes_out_to_report)) {
+    if ((m_bytes_in_to_report) || (m_bytes_out_to_report)) {
       for (var i in m_on_byte_count_handlers) {
-        m_on_byte_count_handlers[i](m_bytes_in_to_report,m_bytes_out_to_report);
+        m_on_byte_count_handlers[i](m_bytes_in_to_report, m_bytes_out_to_report);
       }
-      m_bytes_in_to_report=0;
-      m_bytes_out_to_report=0;
+      m_bytes_in_to_report = 0;
+      m_bytes_out_to_report = 0;
     }
   }
+
+  function next_check_connection_timeout() {
+    do_check_connection_timeout(function() {
+      setTimeout(function() {
+        next_check_connection_timeout();
+      }, 5000);
+    });
+  }
+  function do_check_connection_timeout(callback) {
+
+    var elapsed_since_last_message_msec=(new Date())-m_last_message_timestamp;
+    if (elapsed_since_last_message_msec>opts.timeout_sec*1000) {
+      send_error_and_close_socket(`Closing connection after ${elapsed_since_last_message_msec/1000} seconds of not receiving a message.`);
+      return; //don't call back so we end these checks
+    }
+    callback();
+  }
+  next_check_connection_timeout();
 }
 
 function parse_json(str) {

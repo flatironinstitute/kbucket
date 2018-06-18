@@ -471,7 +471,8 @@ function KBNode(kbnode_directory, kbnode_type) {
 
     var PWS = new PoliteWebSocket({
       wait_for_response: false,
-      enforce_remote_wait_for_response: true
+      enforce_remote_wait_for_response: true,
+      timeout_sec:60
     });
     PWS.setSocket(ws);
 
