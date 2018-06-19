@@ -6,6 +6,7 @@ const WebSocket = require('ws');
 const findPort = require('find-port');
 const fs = require('fs');
 const axios = require('axios');
+const jsondiffpatch = require('jsondiffpatch');
 //const REQUEST = require('request');
 
 const logger = require(__dirname + '/logger.js').logger();
@@ -31,8 +32,9 @@ function KBNode(kbnode_directory, kbnode_type) {
     m_kbucket_url = url;
   };
 
-  var m_config = new KBNodeConfig(kbnode_directory);
+  const m_config = new KBNodeConfig(kbnode_directory);
   let m_context = {};
+  let m_last_node_data_reported=null;
   var API = new KBNodeApi(m_config, m_context);
   var m_app = null;
   m_context.connection_to_parent_hub = null;
@@ -71,6 +73,8 @@ function KBNode(kbnode_directory, kbnode_type) {
       steps.push(start_sending_node_data_to_parent);
     }
 
+    steps.push(start_checking_config_exists);
+
     // for kbnode_type='share'
     if (kbnode_type == 'share') {
       if (!opts.clone_only) {
@@ -105,11 +109,11 @@ function KBNode(kbnode_directory, kbnode_type) {
     }
 
     function generate_pem_keys_and_id_if_needed(callback) {
-      var private_key_fname=m_config.configDir()+'/private.pem';
-      var public_key_fname=m_config.configDir()+'/public.pem';
-      if ((!fs.existsSync(public_key_fname))&&(!fs.existsSync(private_key_fname))) {
+      var private_key_fname = m_config.configDir() + '/private.pem';
+      var public_key_fname = m_config.configDir() + '/public.pem';
+      if ((!fs.existsSync(public_key_fname)) && (!fs.existsSync(private_key_fname))) {
         console.info('Creating private/public keys ...');
-        m_config.generatePemFilesAndId(opts,function(err) {
+        m_config.generatePemFilesAndId(opts, function(err) {
           if (err) {
             callback(err);
             return;
@@ -185,8 +189,6 @@ function KBNode(kbnode_directory, kbnode_type) {
       API.handle_find(params.sha1, '', req, res);
     });
 
-
-
     get_listen_port(function(err, listen_port) {
       if (err) {
         callback(err);
@@ -242,7 +244,17 @@ function KBNode(kbnode_directory, kbnode_type) {
       retry_timeout_sec: 4,
       retry2_timeout_sec: 10
     };
-    do_connect_to_parent_hub(opts, callback);
+    do_connect_to_parent_hub(opts, function(err) {
+      if (err) {
+        setTimeout(function() {
+          console.error('Connection to parent hub failed: '+err);
+          console.info(`Trying again in ${opts.retry_timeout_sec} seconds`);
+          connect_to_parent_hub(callback);
+        },opts.retry_timeout_sec*1000);
+        return;
+      }
+      callback(null);
+    });
   }
 
   function do_connect_to_parent_hub(opts, callback) {
@@ -274,7 +286,6 @@ function KBNode(kbnode_directory, kbnode_type) {
       opts: opts
     });
     /////////////////////////////////////////////////////////////////////////////////////
-
 
     m_context.connection_to_parent_hub.initialize(parent_hub_url, function(err) {
       if (err) {
@@ -472,7 +483,7 @@ function KBNode(kbnode_directory, kbnode_type) {
     var PWS = new PoliteWebSocket({
       wait_for_response: false,
       enforce_remote_wait_for_response: true,
-      timeout_sec:60
+      timeout_sec: 60
     });
     PWS.setSocket(ws);
 
@@ -522,6 +533,21 @@ function KBNode(kbnode_directory, kbnode_type) {
         PWS.sendErrorAndClose('Unexpected child node type: ' + CC.childNodeType());
       }
     });
+  }
+
+  function start_checking_config_exists(callback) {
+    do_check();
+    callback();
+
+    function do_check() {
+      if (!fs.existsSync(kbnode_directory + '/.kbucket/kbnode.json')) {
+        console.info('Configuration file does not exist. Exiting.');
+        process.exit(-1);
+      }
+      setTimeout(function() {
+        do_check();
+      }, 3000);
+    }
   }
 
   function get_listen_port(callback) {
@@ -574,10 +600,22 @@ function KBNode(kbnode_directory, kbnode_type) {
       return;
     }
     const node_data = get_node_data_for_parent();
-    m_context.connection_to_parent_hub.sendMessage({
-      command: 'report_node_data',
-      data: node_data
-    });
+    
+    let msg={
+      command:'report_node_data'
+    };
+    if (m_last_node_data_reported) {
+      let delta=jsondiffpatch.diff(m_last_node_data_reported,node_data);
+      if (delta)
+        msg.data_delta=delta;
+      else
+        msg.data_nochange=true;
+    }
+    else {
+      msg.data=node_data;
+    }
+    m_last_node_data_reported=node_data;
+    m_context.connection_to_parent_hub.sendMessage(msg);
     finalize();
 
     function finalize() {

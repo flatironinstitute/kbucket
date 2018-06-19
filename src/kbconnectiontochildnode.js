@@ -2,6 +2,7 @@ exports.KBConnectionToChildNode = KBConnectionToChildNode;
 
 const crypto = require('crypto');
 const sha1 = require('node-sha1');
+const jsondiffpatch = require('jsondiffpatch');
 
 function KBConnectionToChildNode(config) {
   this.setWebSocket = function(polite_web_socket) {
@@ -151,15 +152,29 @@ function KBConnectionToChildNode(config) {
       }
     }
     else if (X.command == 'report_node_data') {
-      if (!X.data) {
-        report_error_and_close_socket('No data field found in message');
+      if (X.data) {
+        m_child_node_data = X.data;
+        m_child_node_socket.sendMessage({
+          message:'ok'
+        });
+        config.incrementMetric('report_node_data_messages_from_child');
+      }
+      else if (X.data_delta) {
+        m_child_node_data = jsondiffpatch.patch(m_child_node_data,X.data_delta);
+        m_child_node_socket.sendMessage({
+          message:'ok'
+        });
+        config.incrementMetric('report_node_data_delta_messages_from_child');
+      }
+      else if (X.data_nochange) {
+        m_child_node_socket.sendMessage({
+          message:'ok'
+        });  
+      }
+      else {
+        report_error_and_close_socket('No data, data_delta, or data_nochange field found in message');
         return;
       }
-      config.incrementMetric('report_node_data_messages_from_child');
-      m_child_node_data = X.data;
-      m_child_node_socket.sendMessage({
-        message:'ok'
-      });
     }
     else {
       // Handle all other messages
