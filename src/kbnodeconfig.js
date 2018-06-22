@@ -82,9 +82,9 @@ function KBNodeConfig(kbnode_directory) {
   this.incrementMetric = function(name, increment) {
     if (increment===undefined) increment=1;
     m_metrics[name] = (m_metrics[name] || 0) + increment;
-    schedule_write_stats();
+    schedule_write_metrics();
   };
-  this.stats = function() {
+  this.metrics = function() {
     return m_metrics;
   };
 
@@ -548,19 +548,19 @@ function KBNodeConfig(kbnode_directory) {
     }
   }
 
-  let m_write_stats_scheduled = false;
+  let m_write_metrics_scheduled = false;
 
-  function schedule_write_stats() {
-    if (m_write_stats_scheduled) return;
-    m_write_stats_scheduled = true;
+  function schedule_write_metrics() {
+    if (m_write_metrics_scheduled) return;
+    m_write_metrics_scheduled = true;
     setTimeout(function() {
-      m_write_stats_scheduled = false;
-      do_write_stats();
+      m_write_metrics_scheduled = false;
+      do_write_metrics();
     }, 1000);
   }
 
-  function do_write_stats() {
-    write_json_file(m_config_dir + '/stats.json', m_metrics);
+  function do_write_metrics() {
+    write_json_file(m_config_dir + '/metrics.json', m_metrics);
   }
 }
 

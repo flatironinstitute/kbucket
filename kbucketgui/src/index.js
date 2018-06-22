@@ -27,24 +27,26 @@ $(document).ready(function() {
       $('#main_window').append(W.element());
       W.setKBHubId(query.hub);
     }
-  })
+  });
 });
 
 function find_lowest_accessible_hub_url(kbnode_id, callback) {
-  get_node_info(kbnode_id, function(err, info, accessible) {
+  get_node_info(kbnode_id, function(err, resp, accessible) {
     if (err) {
       callback(err);
       return;
     }
+    let info=resp.info||{};
+    let parent_hub_info=resp.parent_hub_info||{};
     if ((accessible) && (info.kbnode_type == 'hub')) {
       callback(null, info.listen_url);
       return;
     }
-    if (!info.parent_hub_info) {
+    if (!parent_hub_info) {
       callback('Unable to find accessible hub.');
       return;
     }
-    find_lowest_accessible_hub_url(info.parent_hub_info.kbnode_id, callback);
+    find_lowest_accessible_hub_url(parent_hub_info.kbnode_id, callback);
   });
 }
 
@@ -66,7 +68,7 @@ function get_node_info(kbnode_id, callback) {
       var accessible = false;
       if ((!err) && (resp2.info) && (resp2.info.kbnode_id == kbnode_id))
         accessible = true;
-      callback(null, resp.info, accessible);
+      callback(null, resp, accessible);
     });
   });
 }

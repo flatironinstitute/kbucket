@@ -21,14 +21,15 @@ function KBNodeApi(config, context) {
       route_http_request_to_node(kbnode_id, `${kbnode_id}/api/nodeinfo`, req, res);
       return;
     }
-    var info = m_config.getNodeInfo();
+    let resp_msg={
+      success:true
+    };
+    resp_msg.info = m_config.getNodeInfo();
     if (m_context.connection_to_parent_hub) {
-      info.parent_hub_info = m_context.connection_to_parent_hub.parentHubInfo();
+      resp_msg.parent_hub_info = m_context.connection_to_parent_hub.parentHubInfo();
     }
-    res.json({
-      success: true,
-      info: info
-    });
+    resp_msg.metrics=m_config.metrics();
+    res.json(resp_msg);
   }
 
   function fsafe_readdir(path, callback) {

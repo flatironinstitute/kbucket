@@ -13,19 +13,21 @@ function KBNodeInfoWidget() {
   this.setMaxWidth = function(max_width) {
     m_max_width = max_width;
     refresh();
-  }
+  };
 
-  var m_element = $(`
+  const m_element = $(`
 		<span>
 			<table class="table">
 			</table>
 		</span>
 	`);
 
-  var m_kbhub_url='';
-  var m_kbnode_id = '';
-  var m_info = null;
-  var m_max_width = 500;
+  let m_kbhub_url='';
+  let m_kbnode_id = '';
+  let m_info = null;
+  let m_parent_hub_info=null;
+  let m_metrics=null;
+  let m_max_width = 500;
 
   function setKBHubUrl(url) {
     if (m_kbhub_url == url) return;
@@ -45,33 +47,40 @@ function KBNodeInfoWidget() {
     if ((!m_kbnode_id)||(!m_kbhub_url)) {
       return;
     }
-    var url = `${m_kbhub_url}/${m_kbnode_id}/api/nodeinfo`;
+    let url = `${m_kbhub_url}/${m_kbnode_id}/api/nodeinfo`;
     $.getJSON(url, {}, function(resp) {
+      console.log(resp);
       m_info = resp.info || {};
+      m_parent_hub_info = resp.parent_hub_info||null;
+      m_metrics = resp.metrics||null;
       refresh();
     });
   }
 
   function refresh() {
-    var table = m_element.find('table');
+    let table = m_element.find('table');
     table.empty();
 
     if (!m_info) return;
 
-    var parent_info = m_info.parent_hub_info || null;
+    let parent_info = m_parent_hub_info || null;
 
-    var tablerows = [];
+    let tablerows = [];
     tablerows.push({
       label: 'Name',
       value: `${m_info.name} (${m_info.kbnode_id})`
+    });
+    tablerows.push({
+      label: 'Type',
+      value: m_info.kbnode_type
     });
     tablerows.push({
       label: 'owner',
       value: `${m_info.owner} (${m_info.owner_email})`
     });
     tablerows.push({
-      label: 'Type',
-      value: m_info.kbnode_type
+      label: 'Description',
+      value: m_info.description
     });
     if (parent_info) {
       tablerows.push({
@@ -81,30 +90,41 @@ function KBNodeInfoWidget() {
     } else {
       tablerows.push({
         label: 'Parent hub',
-        value: `[None]`
+        value: '[None]'
+      });
+    }
+
+    if (m_metrics) {
+      tablerows.push({
+        label: 'Metrics',
+        value: JSON.stringify(m_metrics, null, 4).split('\n').join('<br>').split(' ').join('&nbsp;')
       });
     }
 
     tablerows.push({
-      label: 'Description',
-      value: m_info.description
-    });
-
-    tablerows.push({
-      label: 'Other',
+      label: 'Info',
       value: JSON.stringify(m_info, null, 4).split('\n').join('<br>').split(' ').join('&nbsp;')
     });
 
-    for (var i in tablerows) {
-      var row = tablerows[i];
-      var tr = $('<tr></tr>');
+    if (parent_info) {
+      tablerows.push({
+        label: 'Parent info',
+        value: JSON.stringify(m_parent_hub_info, null, 4).split('\n').join('<br>').split(' ').join('&nbsp;')
+      });
+    }
+
+    
+
+    for (let i in tablerows) {
+      let row = tablerows[i];
+      let tr = $('<tr></tr>');
       tr.append(`<th id=label">${row.label}</th>`);
       tr.append(`<td id=value>${row.value}</td>`);
       tr.find('#label').css({
-        "max-width": 100
+        'max-width': 100
       });
       tr.find('#value').css({
-        "max-width": m_max_width - 100 - 50
+        'max-width': m_max_width - 100 - 50
       });
       table.append(tr);
     }
