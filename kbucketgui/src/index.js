@@ -5,10 +5,15 @@ var TOP_KBUCKET_HUB_URL = 'https://kbucket.flatironinstitute.org';
 
 $(document).ready(function() {
   var query = parse_url_params();
+  window.query=query;
   var kbnode_id = query.share || query.hub;
   if (!kbnode_id) {
     $('#main_window').append('Missing query parameter: share or hub');
     return;
+  }
+
+  if (query.kbucket_url) {
+    TOP_KBUCKET_HUB_URL=query.kbucket_url;
   }
 
   find_lowest_accessible_hub_url(kbnode_id, function(err, hub_url) {

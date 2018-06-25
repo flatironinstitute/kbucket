@@ -160,6 +160,10 @@ function KBConnectionToChildNode(config) {
         config.incrementMetric('report_node_data_messages_from_child');
       }
       else if (X.data_delta) {
+        if (!m_child_node_data) {
+          report_error_and_close_socket('Received data_delta, but child_node_data is null.');
+          return;
+        }
         m_child_node_data = jsondiffpatch.patch(m_child_node_data,X.data_delta);
         m_child_node_socket.sendMessage({
           message:'ok'

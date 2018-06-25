@@ -341,6 +341,10 @@ function KBConnectedShare(connection_to_child_node, config) {
   this.findFile = function(opts, callback) {
     findFile(opts, callback);
   };
+  this.name = function() {
+    var data = connection_to_child_node.childNodeRegistrationInfo();
+    return data.name;
+  };
   this.listenUrl = function() {
     var data = connection_to_child_node.childNodeRegistrationInfo();
     return data.listen_url;
@@ -541,6 +545,10 @@ function KBConnectedChildHub(connection_to_child_node, config) {
   };
   this.childNodeData = function() {
     return connection_to_child_node.childNodeData();
+  };
+  this.name = function() {
+    var data = connection_to_child_node.childNodeRegistrationInfo();
+    return data.name;
   };
   this.listenUrl = function() {
     var data = connection_to_child_node.childNodeRegistrationInfo();

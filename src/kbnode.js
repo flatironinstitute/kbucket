@@ -34,7 +34,7 @@ function KBNode(kbnode_directory, kbnode_type) {
 
   const m_config = new KBNodeConfig(kbnode_directory);
   let m_context = {};
-  let m_last_node_data_reported=null;
+  let m_last_node_data_reported = null;
   var API = new KBNodeApi(m_config, m_context);
   var m_app = null;
   m_context.connection_to_parent_hub = null;
@@ -247,10 +247,10 @@ function KBNode(kbnode_directory, kbnode_type) {
     do_connect_to_parent_hub(opts, function(err) {
       if (err) {
         setTimeout(function() {
-          console.error('Connection to parent hub failed: '+err);
+          console.error('Connection to parent hub failed: ' + err);
           console.info(`Trying again in ${opts.retry_timeout_sec} seconds`);
           connect_to_parent_hub(callback);
-        },opts.retry_timeout_sec*1000);
+        }, opts.retry_timeout_sec * 1000);
         return;
       }
       callback(null);
@@ -269,6 +269,7 @@ function KBNode(kbnode_directory, kbnode_type) {
     }
     m_context.connection_to_parent_hub = new KBConnectionToParentHub(m_config);
     m_context.connection_to_parent_hub.onClose(function() {
+      m_last_node_data_reported = null;
       m_context.connection_to_parent_hub = null;
       if (opts.retry_timeout_sec) {
         var logmsg = `Connection to parent hub closed. Will retry in ${opts.retry_timeout_sec} seconds...`;
@@ -596,32 +597,31 @@ function KBNode(kbnode_directory, kbnode_type) {
 
   function do_send_node_data_to_parent() {
     if (!m_context.connection_to_parent_hub) {
-      finalize();
+      finalize(1000);
       return;
     }
     const node_data = get_node_data_for_parent();
-    
-    let msg={
-      command:'report_node_data'
+
+    let msg = {
+      command: 'report_node_data'
     };
     if (m_last_node_data_reported) {
-      let delta=jsondiffpatch.diff(m_last_node_data_reported,node_data);
+      let delta = jsondiffpatch.diff(m_last_node_data_reported, node_data);
       if (delta)
-        msg.data_delta=delta;
+        msg.data_delta = delta;
       else
-        msg.data_nochange=true;
+        msg.data_nochange = true;
+    } else {
+      msg.data = node_data;
     }
-    else {
-      msg.data=node_data;
-    }
-    m_last_node_data_reported=node_data;
+    m_last_node_data_reported = node_data;
     m_context.connection_to_parent_hub.sendMessage(msg);
-    finalize();
+    finalize(5000);
 
-    function finalize() {
+    function finalize(msec_timeout) {
       setTimeout(function() {
         do_send_node_data_to_parent();
-      }, 5000);
+      }, msec_timeout);
     }
   }
 }

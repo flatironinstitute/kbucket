@@ -1,7 +1,7 @@
 exports.KBShareBrowser = KBShareBrowser;
 
 var FileBrowserWidget = require(__dirname + '/filebrowserwidget.js').FileBrowserWidget;
-var KBNodeInfoWidget = require(__dirname+'/kbnodeinfowidget.js').KBNodeInfoWidget;
+var KBNodeInfoWidget = require(__dirname + '/kbnodeinfowidget.js').KBNodeInfoWidget;
 
 function KBShareBrowser() {
   this.element = function() {
@@ -51,22 +51,21 @@ function KBShareBrowser() {
   m_element.find('#left_panel').append(m_info_widget.element());
 
   function setKBHubUrl(url) {
-  	if (m_kbhub_url==url) return;
-  	m_kbhub_url=url;
-  	update();
+    if (m_kbhub_url == url) return;
+    m_kbhub_url = url;
+    update();
   }
 
   function setKBShareId(id) {
-  	if (m_kbshare_id==id) return;
+    if (m_kbshare_id == id) return;
     m_kbshare_id = id;
     update();
   }
 
   function update() {
-  	m_file_browser_widget.setKBHubUrl(m_kbhub_url);
-  	m_file_browser_widget.setKBShareId(m_kbshare_id);
-  	m_info_widget.setKBHubUrl(m_kbhub_url);
-  	m_info_widget.setKBNodeId(m_kbshare_id);
+    m_file_browser_widget.setKBHubUrl(m_kbhub_url);
+    m_file_browser_widget.setKBShareId(m_kbshare_id);
+    m_info_widget.setKBHubUrl(m_kbhub_url);
+    m_info_widget.setKBNodeId(m_kbshare_id);
   }
 }
-

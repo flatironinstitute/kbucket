@@ -25,6 +25,31 @@ function KBNodeApi(config, context) {
       success:true
     };
     resp_msg.info = m_config.getNodeInfo();
+    if (m_config.kbNodeType()=='hub') {
+      resp_msg.child_hubs={};
+      let CHM = m_context.hub_manager.connectedChildHubManager();
+      let child_hub_ids=CHM.connectedChildHubIds();
+      for (let ii in child_hub_ids) {
+        let id=child_hub_ids[ii];
+        let HH=CHM.getConnectedChildHub(id);
+        resp_msg.child_hubs[id]={
+          name:HH.name(),
+          listen_url:HH.listenUrl()
+        };
+      }
+
+      resp_msg.child_shares={};
+      let CSM = m_context.hub_manager.connectedShareManager();
+      let child_share_ids=CSM.connectedShareIds();
+      for (let ii in child_share_ids) {
+        let id=child_share_ids[ii];
+        let SS=CSM.getConnectedShare(id);
+        resp_msg.child_shares[id]={
+          name:SS.name(),
+          listen_url:SS.listenUrl()
+        };
+      }
+    }
     if (m_context.connection_to_parent_hub) {
       resp_msg.parent_hub_info = m_context.connection_to_parent_hub.parentHubInfo();
     }

@@ -22,11 +22,13 @@ function KBNodeInfoWidget() {
 		</span>
 	`);
 
-  let m_kbhub_url='';
+  let m_kbhub_url = '';
   let m_kbnode_id = '';
   let m_info = null;
-  let m_parent_hub_info=null;
-  let m_metrics=null;
+  let m_parent_hub_info = null;
+  let m_child_hubs = null;
+  let m_child_shares = null;
+  let m_metrics = null;
   let m_max_width = 500;
 
   function setKBHubUrl(url) {
@@ -42,17 +44,18 @@ function KBNodeInfoWidget() {
   }
 
   function update_info() {
-    m_info=null;
+    m_info = null;
     refresh();
-    if ((!m_kbnode_id)||(!m_kbhub_url)) {
+    if ((!m_kbnode_id) || (!m_kbhub_url)) {
       return;
     }
     let url = `${m_kbhub_url}/${m_kbnode_id}/api/nodeinfo`;
     $.getJSON(url, {}, function(resp) {
-      console.log(resp);
       m_info = resp.info || {};
-      m_parent_hub_info = resp.parent_hub_info||null;
-      m_metrics = resp.metrics||null;
+      m_parent_hub_info = resp.parent_hub_info || null;
+      m_child_shares = resp.child_shares || null;
+      m_child_hubs = resp.child_hubs || null;
+      m_metrics = resp.metrics || null;
       refresh();
     });
   }
@@ -94,6 +97,13 @@ function KBNodeInfoWidget() {
       });
     }
 
+    if ((m_child_shares)&&(m_child_shares)) {
+      tablerows.push({
+        label: 'Num. child hubs/shares',
+        value: `${Object.keys(m_child_hubs).length}/${Object.keys(m_child_shares).length}`
+      });
+    }
+
     if (m_metrics) {
       tablerows.push({
         label: 'Metrics',
@@ -113,7 +123,7 @@ function KBNodeInfoWidget() {
       });
     }
 
-    
+
 
     for (let i in tablerows) {
       let row = tablerows[i];
@@ -130,7 +140,11 @@ function KBNodeInfoWidget() {
     }
 
     table.find('#open_parent_hub').click(function() {
-      window.location.href = '?hub=' + parent_info.kbnode_id;
+      let query=window.query||{};
+      let url=`?hub=${parent_info.kbnode_id}`;
+      if (query.kbucket_url)
+        url+=`&kbucket_url=${query.kbucket_url}`;
+      window.location.href = url;
     });
   }
 }
