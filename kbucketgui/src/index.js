@@ -2,11 +2,16 @@ var KBShareBrowser = require(__dirname + '/kbsharebrowser.js').KBShareBrowser;
 var KBHubBrowser = require(__dirname + '/kbhubbrowser.js').KBHubBrowser;
 
 var TOP_KBUCKET_HUB_URL = 'https://kbucket.flatironinstitute.org';
+var DEFAULT_HUB_ID = 'a31ff6b646de';
 
 $(document).ready(function() {
   var query = parse_url_params();
   window.query=query;
   var kbnode_id = query.share || query.hub;
+  if (!kbnode_id) {
+    query.hub=DEFAULT_HUB_ID;
+    kbnode_id=query.hub;
+  }
   if (!kbnode_id) {
     $('#main_window').append('Missing query parameter: share or hub');
     return;
