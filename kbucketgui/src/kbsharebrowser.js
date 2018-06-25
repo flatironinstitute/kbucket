@@ -65,6 +65,7 @@ function KBShareBrowser() {
   function update() {
     m_file_browser_widget.setKBHubUrl(m_kbhub_url);
     m_file_browser_widget.setKBShareId(m_kbshare_id);
+    m_file_browser_widget.setRootLabel(`kbucket://${m_kbshare_id}`);
     m_info_widget.setKBHubUrl(m_kbhub_url);
     m_info_widget.setKBNodeId(m_kbshare_id);
   }

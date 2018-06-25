@@ -76,6 +76,7 @@ function do_clone(info, opts, dest_directory) {
       console.error(err);
       process.exit(-1);
     }
+    process.exit(0);
   });
 }
 

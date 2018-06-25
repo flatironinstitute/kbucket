@@ -73,7 +73,9 @@ function KBNode(kbnode_directory, kbnode_type) {
       steps.push(start_sending_node_data_to_parent);
     }
 
-    steps.push(start_checking_config_exists);
+    if (!opts.clone_only) {
+      steps.push(start_checking_config_exists);
+    }
 
     // for kbnode_type='share'
     if (kbnode_type == 'share') {

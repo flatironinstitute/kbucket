@@ -27,6 +27,10 @@ function FileBrowserWidget() {
     m_current_directory = path;
     refresh();
   };
+  this.setRootLabel = function(label) {
+    m_root_label = label;
+    refresh();
+  };
 
   var m_element = $(`
 		<span>
@@ -38,6 +42,7 @@ function FileBrowserWidget() {
   var m_kbhub_url = '';
   var m_kbshare_id = '';
   var m_current_directory = '';
+  let m_root_label = 'ROOT';
 
   refresh();
 
@@ -80,7 +85,7 @@ function FileBrowserWidget() {
   }
 
   function readdir(directory, opts, callback) {
-  	var url0=`${m_kbhub_url}/${m_kbshare_id}/api/readdir/${directory}`;
+    var url0 = `${m_kbhub_url}/${m_kbshare_id}/api/readdir/${directory}`;
     $.getJSON(url0, function(resp) {
       if (resp.error) {
         callback(resp.error);
@@ -92,7 +97,7 @@ function FileBrowserWidget() {
 
   function create_path_element() {
     var path_element = $('<span />');
-    path_element.append(`<a href=# data-path="">ROOT</a>`);
+    path_element.append(`<a href=# data-path="">${m_root_label}</a>`);
     var aaa = m_current_directory.split('/');
     var path0 = '';
     for (var i in aaa) {
@@ -165,17 +170,19 @@ function FileBrowserWidget() {
     elmt.find('#prepare').attr('title', `Prepare download of ${dirname}.prvdir`);
     elmt.find('#prepare').click(function() {
       elmt.find('#download').html('Preparing...');
-      create_prvdir_object(dirname, current_directory, {status_elmt:elmt.find('#download')}, function(err, obj) {
+      create_prvdir_object(dirname, current_directory, {
+        status_elmt: elmt.find('#download')
+      }, function(err, obj) {
         if (err) {
           elmt.find('#download').html('Error: ' + err);
           return;
         }
-        
-        var download_link=$('<a href=#>(download)</a>');
-        download_link.attr('title',`Download ${dirname}.prvdir`)
+
+        var download_link = $('<a href=#>(download)</a>');
+        download_link.attr('title', `Download ${dirname}.prvdir`)
         download_link.click(function() {
-        	var json = JSON.stringify(obj, null, 4);
-        	download(json,dirname+'.prvdir');
+          var json = JSON.stringify(obj, null, 4);
+          download(json, dirname + '.prvdir');
         });
         elmt.find('#download').empty();
         elmt.find('#download').append(download_link);
@@ -185,38 +192,38 @@ function FileBrowserWidget() {
   }
 
   function create_prvdir_object(dirname, current_directory, opts, callback) {
-  	var obj={
-  		files:{},
-  		dirs:{}
-  	};
-  	if (opts.status_elmt) {
-  		opts.status_elmt.html('Reading directory: '+dirname);
-  	}
-    readdir(require('path').join(current_directory,dirname), {}, function(err, files, dirs) {
-    	if (err) {
-    		callback(err);
-    		return;
-    	}
-    	for (var i in files) {
-    		var file0=files[i];
-    		if (!file0.prv) {
-    			callback('Not all files have been indexed.');
-    			return;
-    		}
-    		obj['files'][file0.name]=file0.prv;
-    	}
-    	async.eachSeries(dirs,function(dir0,cb) {
-    		create_prvdir_object(dir0.name,require('path').join(current_directory,dirname),opts,function(err,obj0) {
-    			if (err) {
-    				callback(err);
-    				return;
-    			}
-    			obj['dirs'][dir0.name]=obj0;
-    			cb();
-    		})
-    	},function() {
-    		callback(null,obj);
-    	});
+    var obj = {
+      files: {},
+      dirs: {}
+    };
+    if (opts.status_elmt) {
+      opts.status_elmt.html('Reading directory: ' + dirname);
+    }
+    readdir(require('path').join(current_directory, dirname), {}, function(err, files, dirs) {
+      if (err) {
+        callback(err);
+        return;
+      }
+      for (var i in files) {
+        var file0 = files[i];
+        if (!file0.prv) {
+          callback('Not all files have been indexed.');
+          return;
+        }
+        obj['files'][file0.name] = file0.prv;
+      }
+      async.eachSeries(dirs, function(dir0, cb) {
+        create_prvdir_object(dir0.name, require('path').join(current_directory, dirname), opts, function(err, obj0) {
+          if (err) {
+            callback(err);
+            return;
+          }
+          obj['dirs'][dir0.name] = obj0;
+          cb();
+        })
+      }, function() {
+        callback(null, obj);
+      });
     });
   }
 
