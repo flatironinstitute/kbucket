@@ -17,7 +17,7 @@ function KBNodeApi(config, context) {
 
   function handle_nodeinfo(kbnode_id, req, res) {
     config.incrementMetric('num_requests_nodeinfo');
-    allow_cross_domain_requests(req, res);
+    //allow_cross_domain_requests(req, res);
     if (m_config.kbNodeId() != kbnode_id) {
       route_http_request_to_node(kbnode_id, `${kbnode_id}/api/nodeinfo`, req, res);
       return;
@@ -96,7 +96,7 @@ function KBNodeApi(config, context) {
       kbshare_id: kbshare_id,
       subdirectory: subdirectory
     });
-    allow_cross_domain_requests(req, res);
+    //allow_cross_domain_requests(req, res);
     if (!is_safe_path(subdirectory)) {
       send_500(res, 'Unsafe path: ' + subdirectory);
       return;
@@ -200,7 +200,7 @@ function KBNodeApi(config, context) {
       kbshare_id: kbshare_id,
       filename: filename
     });
-    allow_cross_domain_requests(req, res);
+    //allow_cross_domain_requests(req, res);
 
     // don't worry too much because express takes care of this below (b/c we specify a root directory)
     if (!is_safe_path(filename)) {
@@ -249,7 +249,7 @@ function KBNodeApi(config, context) {
       kbshare_id: kbshare_id,
       filename: filename
     });
-    allow_cross_domain_requests(req, res);
+    //allow_cross_domain_requests(req, res);
 
     // don't worry too much because express takes care of this below (b/c we specify a root directory)
     if (!is_safe_path(filename)) {
@@ -281,7 +281,7 @@ function KBNodeApi(config, context) {
       sha1: sha1,
       filename: filename
     });
-    allow_cross_domain_requests(req, res);
+    //allow_cross_domain_requests(req, res);
 
     if (m_config.kbNodeType() != 'hub') {
       send_500(res, 'Cannot find. This is not a hub.');
@@ -340,6 +340,7 @@ function KBNodeApi(config, context) {
 
 }
 
+/*
 function allow_cross_domain_requests(req, res) {
   try {
     if (req.method == 'OPTIONS') {
@@ -358,6 +359,7 @@ function allow_cross_domain_requests(req, res) {
     logger.error(`Caught exception in allow_cross_domain_requests (${req.method}): ${err.message}`);
   }
 }
+*/
 
 function send_404(res) {
   try {

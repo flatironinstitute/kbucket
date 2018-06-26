@@ -2,6 +2,7 @@ exports.KBNode = KBNode;
 
 const async = require('async');
 const express = require('express');
+const cors = require('cors');
 const WebSocket = require('ws');
 const findPort = require('find-port');
 const fs = require('fs');
@@ -158,6 +159,8 @@ function KBNode(kbnode_directory, kbnode_type) {
     var app = m_app;
 
     app.set('json spaces', 4); // when we respond with json, this is how it will be formatted
+
+    app.use(cors());
 
     // API readdir
     app.get('/:kbshare_id/api/readdir/:subdirectory(*)', function(req, res) {
