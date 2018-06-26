@@ -160,39 +160,39 @@ function KBNode(kbnode_directory, kbnode_type) {
     app.set('json spaces', 4); // when we respond with json, this is how it will be formatted
 
     // API readdir
-    app.get('/:kbshare_id/api/readdir/:subdirectory(*)', function(req, res) {
+    app.use('/:kbshare_id/api/readdir/:subdirectory(*)', function(req, res) {
       var params = req.params;
       API.handle_readdir(params.kbshare_id, params.subdirectory, req, res);
     });
-    app.get('/:kbshare_id/api/readdir/', function(req, res) {
+    app.use('/:kbshare_id/api/readdir/', function(req, res) {
       var params = req.params;
       API.handle_readdir(params.kbshare_id, '', req, res);
     });
 
     // API nodeinfo
-    app.get('/:kbnode_id/api/nodeinfo', function(req, res) {
+    app.use('/:kbnode_id/api/nodeinfo', function(req, res) {
       var params = req.params;
       API.handle_nodeinfo(params.kbnode_id, req, res);
     });
 
     // API download
-    app.get('/:kbshare_id/download/:filename(*)', function(req, res) {
+    app.use('/:kbshare_id/download/:filename(*)', function(req, res) {
       var params = req.params;
       API.handle_download(params.kbshare_id, params.filename, req, res);
     });
 
     // API prv
-    app.get('/:kbshare_id/prv/:filename(*)', function(req, res) {
+    app.use('/:kbshare_id/prv/:filename(*)', function(req, res) {
       var params = req.params;
       API.handle_prv(params.kbshare_id, params.filename, req, res);
     });
 
     // API find (only for kbnode_type='hub')
-    app.get('/find/:sha1/:filename(*)', function(req, res) {
+    app.use('/find/:sha1/:filename(*)', function(req, res) {
       var params = req.params;
       API.handle_find(params.sha1, params.filename, req, res);
     });
-    app.get('/find/:sha1/', function(req, res) {
+    app.use('/find/:sha1/', function(req, res) {
       var params = req.params;
       API.handle_find(params.sha1, '', req, res);
     });
