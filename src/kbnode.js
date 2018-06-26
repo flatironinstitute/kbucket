@@ -181,6 +181,12 @@ function KBNode(kbnode_directory, kbnode_type) {
       API.handle_download(params.kbshare_id, params.filename, req, res);
     });
 
+    // API prv
+    app.get('/:kbshare_id/prv/:filename(*)', function(req, res) {
+      var params = req.params;
+      API.handle_prv(params.kbshare_id, params.filename, req, res);
+    });
+
     // API find (only for kbnode_type='hub')
     app.get('/find/:sha1/:filename(*)', function(req, res) {
       var params = req.params;

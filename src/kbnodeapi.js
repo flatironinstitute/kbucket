@@ -9,6 +9,7 @@ function KBNodeApi(config, context) {
   this.handle_nodeinfo = handle_nodeinfo;
   this.handle_readdir = handle_readdir;
   this.handle_download = handle_download;
+  this.handle_prv = handle_prv;
   this.handle_find = handle_find;
 
   var m_config = config;
@@ -240,6 +241,38 @@ function KBNodeApi(config, context) {
         error: error.message
       });
     }
+  }
+
+  function handle_prv(kbshare_id, filename, req, res) {
+    config.incrementMetric('num_requests_prv');
+    logger.info('handle_prv', {
+      kbshare_id: kbshare_id,
+      filename: filename
+    });
+    allow_cross_domain_requests(req, res);
+
+    // don't worry too much because express takes care of this below (b/c we specify a root directory)
+    if (!is_safe_path(filename)) {
+      send_500(res, 'Unsafe path: ' + subdirectory);
+      return;
+    }
+    if (m_config.kbNodeType() == 'hub') {
+      var urlpath0 = `${kbshare_id}/prv/${filename}`;
+      route_http_request_to_node(kbshare_id, urlpath0, req, res);
+      return;
+    }
+    // so, m_config.kbNodeType() = 'share'
+    if (m_config.kbNodeId() != kbshare_id) {
+      send_500(res, 'Incorrect kbshare id: ' + kbshare_id);
+      return;
+    }
+
+    let prv0=m_context.share_indexer.getPrvForIndexedFile(filename);
+    if (!prv0) {
+      send_500(res, 'File is not yet indexed or does not exist.');
+      return;
+    }
+    res.json(prv0);
   }
 
   function handle_find(sha1, filename, req, res) {
