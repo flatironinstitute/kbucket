@@ -44,9 +44,12 @@ function FileBrowserWidget() {
   var m_current_directory = '';
   let m_root_label = 'ROOT';
 
+  let global_refresh_code = 0;
   refresh();
 
   function refresh() {
+    global_refresh_code++;
+    let local_refresh_code = global_refresh_code;
     if ((!m_kbshare_id) || (!m_kbhub_url)) {
       m_element.find('#path').html('');
       m_files_table.empty();
@@ -58,6 +61,8 @@ function FileBrowserWidget() {
     m_files_table.empty();
     m_files_table.append(`<tr><th style="width:100px">Name</th><th>Size</th><th>PRV</th><th>SHA-1</th></tr>`);
     readdir(m_current_directory, {}, function(err, files, dirs) {
+      if (local_refresh_code != global_refresh_code)
+        return; // somebody else is refreshing the view
       if (err) {
         throw err;
       }
