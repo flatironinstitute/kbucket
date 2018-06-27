@@ -569,8 +569,9 @@ function KBNodeConfig(kbnode_directory) {
 function run_command_and_read_stdout(cmd, callback) {
   var P;
   try {
-    P = require('child_process').spawn(cmd, {
-      shell: true
+    let args=cmd.split(' ');
+    P = require('child_process').spawn(cmd[0],cmd.slice(1), {
+      shell: false
     });
   } catch (err) {
     callback(`Problem launching ${cmd}: ${err.message}`);
