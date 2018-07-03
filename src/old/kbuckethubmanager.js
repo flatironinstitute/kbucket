@@ -554,6 +554,9 @@ function KBConnectedChildHub(connection_to_child_node, config) {
     var data = connection_to_child_node.childNodeRegistrationInfo();
     return data.listen_url;
   };
+  this.httpOverWebsocketClient=function() {
+    return m_http_over_websocket_client();
+  };
 
   connection_to_child_node.onMessage(function(msg) {
     process_message_from_connected_child_hub(msg, function(err, response) {

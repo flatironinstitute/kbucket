@@ -24,26 +24,27 @@ function KBNodeShareIndexer(config) {
     }
     return m_indexed_files[relpath].prv;
   };
-  this.nodeDataForParent=function() {
-    var files_by_sha1={};
+  this.nodeDataForParent = function() {
+    var files_by_sha1 = {};
     for (var relpath in m_indexed_files) {
-      const file0=m_indexed_files[relpath];
-      const sha1=file0.prv.original_checksum;
-      files_by_sha1[sha1]={
-        path:relpath,
-        size:file0.prv.original_size
+      const file0 = m_indexed_files[relpath];
+      const sha1 = file0.prv.original_checksum;
+      files_by_sha1[sha1] = {
+        path: relpath,
+        size: file0.prv.original_size
       };
     }
     return {
-      files_by_sha1:files_by_sha1
+      files_by_sha1: files_by_sha1
     };
   };
 
   var m_queued_files = {};
   var m_indexed_files = {};
   let m_indexed_something = false;
+  let m_prv_cache_manager = new PrvCacheManager(config.configDir(), config.hemlockNodeDirectory());
 
-  var m_file_iterator = new SteadyFileIterator(config.kbNodeDirectory());
+  var m_file_iterator = new SteadyFileIterator(config.hemlockNodeDirectory());
   m_file_iterator.onUpdateFile(function(relpath, stat0) { //note: stat is not really used
     update_file(relpath, stat0);
   });
@@ -51,8 +52,8 @@ function KBNodeShareIndexer(config) {
     remove_file(relpath);
   });
 
-  function update_file(relpath,stat0) {
-    m_queued_files[relpath]=true;
+  function update_file(relpath, stat0) {
+    m_queued_files[relpath] = true;
   }
 
   function remove_file(relpath) {
@@ -69,10 +70,11 @@ function KBNodeShareIndexer(config) {
   }
 
   handle_queued_files();
+
   function handle_queued_files() {
     do_handle_queued_files(function(err) {
       if (err) {
-        console.warn('Problem handling queued files: '+err);
+        console.warn('Problem handling queued files: ' + err);
       }
       setTimeout(function() {
         handle_queued_files();
@@ -81,17 +83,18 @@ function KBNodeShareIndexer(config) {
     });
   }
 
-  let s_last_report={};
+  let s_last_report = {};
+
   function report_changes() {
-    var report={
-      num_queued_files:Object.keys(m_queued_files).length,
-      num_indexed_files:Object.keys(m_indexed_files).length
+    var report = {
+      num_queued_files: Object.keys(m_queued_files).length,
+      num_indexed_files: Object.keys(m_indexed_files).length
     };
-    if (JSON.stringify(report)!=JSON.stringify(s_last_report)) {
-      if ((report.num_queued_files===0)&&(m_indexed_something)) {
+    if (JSON.stringify(report) != JSON.stringify(s_last_report)) {
+      if ((report.num_queued_files === 0) && (m_indexed_something)) {
         console.info(`Indexed ${report.num_indexed_files} files.`);
       }
-      s_last_report=report;
+      s_last_report = report;
     }
   }
 
@@ -118,7 +121,7 @@ function KBNodeShareIndexer(config) {
 
     delete m_queued_files[relpath];
 
-    const fullpath=require('path').join(config.kbNodeDirectory(),relpath);
+    const fullpath = require('path').join(config.hemlockNodeDirectory(), relpath);
     if (!exists_sync(fullpath)) {
       if (relpath in m_indexed_files) {
         delete m_indexed_files[relpath];
@@ -127,14 +130,14 @@ function KBNodeShareIndexer(config) {
       }
     }
 
-    compute_prv(relpath,function(err,prv) {
+    compute_prv(relpath, function(err, prv) {
       if (err) {
         callback(err);
         return;
       }
-      m_indexed_something=true;
-      m_indexed_files[relpath]={
-        prv:prv
+      m_indexed_something = true;
+      m_indexed_files[relpath] = {
+        prv: prv
       };
       callback();
     });
@@ -150,19 +153,19 @@ function KBNodeShareIndexer(config) {
   */
 
   function compute_prv(relpath, callback) {
-    var prv_obj = config.getPrvFromCache(relpath);
+    var prv_obj = m_prv_cache_manager.getPrvFromCache(relpath);
     if (prv_obj) {
       callback(null, prv_obj);
       return;
     }
-    const fullpath=require('path').join(config.kbNodeDirectory(),relpath);
+    const fullpath = require('path').join(config.hemlockNodeDirectory(), relpath);
     console.info(`Computing prv for: ${relpath}`);
     computePrvObject(fullpath, function(err, obj) {
       if (err) {
         callback(err);
         return;
       }
-      config.savePrvToCache(relpath, obj);
+      m_prv_cache_manager.savePrvToCache(relpath, obj);
       callback(null, obj);
     });
   }
@@ -263,6 +266,142 @@ function computePrvObject(fname, callback) {
   });
 }
 
+function PrvCacheManager(config_dir, node_directory) {
+  this.getPrvFromCache = function(relpath) {
+    return get_prv_from_cache(relpath);
+  };
+  this.savePrvToCache = function(relpath, prv) {
+    save_prv_to_cache(relpath, prv);
+  };
+
+  if (!require('fs').existsSync(config_dir + '/prv_cache')) {
+    require('fs').mkdirSync(config_dir + '/prv_cache');
+  }
+
+  function get_prv_cache_fname(path) {
+    // used for kbnode_type='share'
+    if (!path) return '';
+    return config_dir + '/prv_cache/' + sha1(path).slice(0, 12) + '.json';
+  }
+
+  function get_prv_from_cache(relpath) {
+    // used for kbnode_type='share'
+    var cache_fname = get_prv_cache_fname(relpath);
+    if (!require('fs').existsSync(cache_fname)) {
+      return null;
+    }
+    var obj = read_json_file(cache_fname);
+    if (!obj) return null;
+    if (!prv_cache_object_matches_file(obj, node_directory + '/' + relpath)) {
+      return null;
+    }
+    return obj.prv;
+  }
+
+  function prv_cache_object_matches_file(obj, path) {
+    // used for kbnode_type='share'
+    if (!obj) return false;
+    let stat0;
+    try {
+      stat0 = require('fs').statSync(path);
+    } catch (err) {
+      return false;
+    }
+    if (stat0.size != obj.size) {
+      return false;
+    }
+    if (stat0.mtime + '' != obj.mtime) {
+      return false;
+    }
+    if (!obj.prv) return false;
+    return true;
+  }
+
+  function save_prv_to_cache(relpath, prv) {
+    // used for kbnode_type='share'
+    var cache_fname = get_prv_cache_fname(relpath);
+    var stat0 = require('fs').statSync(node_directory + '/' + relpath);
+    var obj = {};
+    obj.path = relpath;
+    obj.size = stat0.size;
+    obj.mtime = stat0.mtime + '';
+    obj.prv = prv;
+    write_json_file(cache_fname, obj);
+  }
+
+  function start_the_cleaner() {
+    cleanup(function(err) {
+      if (err) {
+        console.error(err);
+        console.error('Aborting');
+        process.exit(-1);
+        return;
+      }
+      setTimeout(start_the_cleaner, 60*1000);
+    });
+  }
+
+  function cleanup(callback) {
+    cleanup_prv_cache(function() {
+      callback(null);
+    });
+  }
+
+  function cleanup_prv_cache(callback) {
+    // used for kbnode_type='share'
+    var prv_cache_dir = config_dir + '/prv_cache';
+    require('fs').readdir(prv_cache_dir, function(err, files) {
+      if (err) {
+        callback('Error in cleanup_prv_cache:readdir: ' + err.message);
+        return;
+      }
+      async.eachSeries(files, function(file, cb) {
+        cleanup_prv_cache_file(prv_cache_dir + '/' + file, function(err) {
+          if (err) {
+            callback(err);
+            return;
+          }
+          cb();
+        });
+      }, function() {
+        callback();
+      });
+    });
+  }
+
+  function cleanup_prv_cache_file(cache_filepath, callback) {
+    // used for kbnode_type='share'
+    var obj = read_json_file(cache_filepath);
+    if (!obj) {
+      safe_remove_file(cache_filepath);
+      callback(null);
+      return;
+    }
+    var relpath1 = obj.path;
+    if (get_prv_cache_fname(relpath1) != cache_filepath) {
+      safe_remove_file(cache_filepath);
+      callback(null);
+      return;
+    }
+    if (!prv_cache_object_matches_file(obj, node_directory + '/' + relpath1)) {
+      safe_remove_file(cache_filepath);
+      callback(null);
+      return;
+    }
+    callback(null);
+  }
+
+  function safe_remove_file(cache_filepath) {
+    try {
+      require('fs').unlinkSync(cache_filepath);
+    } catch (err) {
+      console.warn('Unable to remove file: ' + cache_filepath);
+    }
+  }
+
+  start_the_cleaner();
+}
+
 function compute_file_sha1(path, opts, callback) {
   var opts2 = {};
   if (opts.start_byte) opts2.start = opts.start_byte;
@@ -286,8 +425,51 @@ function include_file_name(name) {
 function exists_sync(path) {
   try {
     return require('fs').existsSync(path);
+  } catch (err) {
+    return false;
   }
-  catch(err) {
+}
+
+function parse_json(str) {
+  try {
+    return JSON.parse(str);
+  } catch (err) {
+    return null;
+  }
+}
+
+function read_json_file(fname) {
+  try {
+    var txt = require('fs').readFileSync(fname, 'utf8');
+    return parse_json(txt);
+  } catch (err) {
+    return null;
+  }
+}
+
+function read_text_file(fname) {
+  try {
+    var txt = require('fs').readFileSync(fname, 'utf8');
+    return txt;
+  } catch (err) {
+    return null;
+  }
+}
+
+function write_text_file(fname, txt) {
+  try {
+    require('fs').writeFileSync(fname, txt);
+    return true;
+  } catch (err) {
+    return false;
+  }
+}
+
+function write_json_file(fname, obj) {
+  try {
+    require('fs').writeFileSync(fname, JSON.stringify(obj, null, 4));
+    return true;
+  } catch (err) {
     return false;
   }
 }

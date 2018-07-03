@@ -2,7 +2,10 @@
 
 const fs = require('fs');
 
-const KBNode = require(__dirname + '/kbnode.js').KBNode;
+const HemlockNode = require(__dirname + '/hemlock/hemlocknode.js').HemlockNode;
+const KBHttpServer=require(__dirname+'/kbhttpserver.js').KBHttpServer;
+const KBNodeApi=require(__dirname+'/kbnodeapi.js').KBNodeApi;
+const KBNodeShareIndexer = require(__dirname + '/kbnodeshareindexer.js').KBNodeShareIndexer;
 
 var CLP = new CLParams(process.argv);
 
@@ -21,14 +24,37 @@ var init_opts = {};
 if ('auto' in CLP.namedParameters) {
   init_opts.auto_use_defaults = true;
 }
+init_opts.config_directory_name='.kbucket';
+init_opts.config_file_name='kbnode.json';
+init_opts.node_type_label='share';
 
-var X = new KBNode(share_directory, 'share');
+var X = new HemlockNode(share_directory, 'terminal');
+let context=X.context();
+let API=new KBNodeApi(context);
+let SS=new KBHttpServer(API);
+X.setHttpServer(SS.app());
+let TM=new TerminalManager();
+X.setTerminalManager(TM);
 X.initialize(init_opts, function(err) {
   if (err) {
     console.error(err);
     process.exit(-1);
-  }
+  }  
+  context.share_indexer=new KBNodeShareIndexer(context.config);
+  context.share_indexer.startIndexing();
 });
+
+function TerminalManager() {
+  this.nodeDataForParent = function() {
+    return context.share_indexer.nodeDataForParent();
+  };
+  this.restart=function() {
+    console.info('Restarting indexing.');
+    if (context.share_indexer) {
+      context.share_indexer.restartIndexing();
+    }
+  };
+}
 
 function CLParams(argv) {
   this.unnamedParameters = [];
@@ -59,4 +85,4 @@ function CLParams(argv) {
       this.unnamedParameters.push(arg0);
     }
   }
-};
+}
