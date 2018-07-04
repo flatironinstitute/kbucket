@@ -8,13 +8,13 @@ const logger = require(__dirname + '/logger.js').logger();
 const HttpOverWebSocketClient = require(__dirname + '/httpoverwebsocket.js').HttpOverWebSocketClient;
 
 var LIMITS = {
-  max_connected_terminals: 1e3,
+  max_connected_leaf_nodes: 1e3,
   max_connected_child_hubs: 10
 };
 
 function HemlockHubManager(config) {
-  this.connectedTerminalManager = function() {
-    return m_connected_terminal_manager;
+  this.connectedLeafManager = function() {
+    return m_connected_leaf_manager;
   };
   this.connectedChildHubManager = function() {
     return m_connected_child_hub_manager;
@@ -25,29 +25,29 @@ function HemlockHubManager(config) {
   this.nodeDataForParent = function() {
     return nodeDataForParent();
   };
-  this.routeHttpRequestToNode = function(hemlock_node_id, path, req, res) {
-    routeHttpRequestToNode(hemlock_node_id, path, req, res);
+  this.routeHttpRequestToNode = function(node_id, path, req, res) {
+    routeHttpRequestToNode(node_id, path, req, res);
   };
 
-  // The terminal manager (see HemlockConnectedTerminalManager)
-  var m_connected_terminal_manager = new HemlockConnectedTerminalManager(config);
+  // The leaf manager (see HemlockConnectedLeafManager)
+  var m_connected_leaf_manager = new HemlockConnectedLeafManager(config);
   // The connected child hub manager (see HemlockConnectedChildHubManager)
   var m_connected_child_hub_manager = new HemlockConnectedChildHubManager(config);
 
   function nodeDataForParent() {
     var data = {
-      hemlock_node_id: config.hemlockNodeId(),
+      node_id: config.hemlockNodeId(),
       descendant_nodes: {}
     };
-    var hemlock_terminal_ids = m_connected_terminal_manager.connectedTerminalIds();
-    for (let ii in hemlock_terminal_ids) {
-      var hemlock_terminal_id = hemlock_terminal_ids[ii];
-      var SS = m_connected_terminal_manager.getConnectedTerminal(hemlock_terminal_id);
-      data.descendant_nodes[hemlock_terminal_id] = {
-        hemlock_node_id: hemlock_terminal_id,
-        parent_hemlock_node_id: config.hemlockNodeId(),
+    var hemlock_leaf_ids = m_connected_leaf_manager.connectedLeafIds();
+    for (let ii in hemlock_leaf_ids) {
+      var hemlock_leaf_id = hemlock_leaf_ids[ii];
+      var SS = m_connected_leaf_manager.getConnectedLeaf(hemlock_leaf_id);
+      data.descendant_nodes[hemlock_leaf_id] = {
+        node_id: hemlock_leaf_id,
+        parent_node_id: config.hemlockNodeId(),
         listen_url: SS.listenUrl(),
-        hemlock_node_type: 'terminal'
+        node_type: 'leaf'
       };
     }
     var hemlock_hub_ids = m_connected_child_hub_manager.connectedChildHubIds();
@@ -55,10 +55,10 @@ function HemlockHubManager(config) {
       var hemlock_hub_id = hemlock_hub_ids[ii];
       var HH = m_connected_child_hub_manager.getConnectedChildHub(hemlock_hub_id);
       data.descendant_nodes[hemlock_hub_id] = {
-        hemlock_node_id: hemlock_hub_id,
-        parent_hemlock_node_id: config.hemlockNodeId(),
+        node_id: hemlock_hub_id,
+        parent_node_id: config.hemlockNodeId(),
         listen_url: HH.listenUrl(),
-        hemlock_node_type: 'hub'
+        node_type: 'hub'
       };
       var data0 = HH.childNodeData();
       data0.descendant_nodes = data0.descendant_nodes || {};
@@ -69,13 +69,13 @@ function HemlockHubManager(config) {
     return data;
   }
 
-  function routeHttpRequestToNode(hemlock_node_id, path, req, res) {
-    var SS = m_connected_terminal_manager.getConnectedTerminal(hemlock_node_id);
+  function routeHttpRequestToNode(node_id, path, req, res) {
+    var SS = m_connected_leaf_manager.getConnectedLeaf(node_id);
     if (SS) {
       SS.processHttpRequest(path, req, res);
       return;
     }
-    const HH0 = m_connected_child_hub_manager.getConnectedChildHub(hemlock_node_id);
+    const HH0 = m_connected_child_hub_manager.getConnectedChildHub(node_id);
     if (HH0) {
       HH0.processHttpRequest(path, req, res);
       return;
@@ -86,72 +86,73 @@ function HemlockHubManager(config) {
       const HH_child = m_connected_child_hub_manager.getConnectedChildHub(id);
       var data0 = HH_child.childNodeData();
       var dn0 = data0.descendant_nodes || {};
-      if (hemlock_node_id in dn0) {
+      console.log('dn0',dn0);
+      if (node_id in dn0) {
         HH_child.processHttpRequest(path, req, res);
         return;
       }
     }
     res.status(500).send({
-      error: 'Unable to locate node with id: ' + hemlock_node_id
+      error: 'Unable to locate node with id: ' + node_id
     });
   }
 }
 
-function HemlockConnectedTerminalManager(config) {
-  // Manage a collection of HemlockConnectedTerminal objects, each representing a connected terminal
-  this.addConnectedTerminal = function(connection_to_child_node, callback) {
-    addConnectedTerminal(connection_to_child_node, callback);
+function HemlockConnectedLeafManager(config) {
+  // Manage a collection of HemlockConnectedLeaf objects, each representing a connected leaf
+  this.addConnectedLeaf = function(connection_to_child_node, callback) {
+    addConnectedLeaf(connection_to_child_node, callback);
   };
-  this.connectedTerminalIds = function() {
-    return Object.keys(m_connected_terminals);
+  this.connectedLeafIds = function() {
+    return Object.keys(m_connected_leaf_nodes);
   };
-  this.getConnectedTerminal = function(hemlock_node_id) {
-    return m_connected_terminals[hemlock_node_id] || null;
+  this.getConnectedLeaf = function(node_id) {
+    return m_connected_leaf_nodes[node_id] || null;
   };
 
-  var m_connected_terminals = {};
+  var m_connected_leaf_nodes = {};
 
-  function addConnectedTerminal(connection_to_child_node, callback) {
-    // Add a new connected terminal
+  function addConnectedLeaf(connection_to_child_node, callback) {
+    // Add a new connected leaf
 
-    var num_connected_terminals = Object.keys(m_connected_terminals).length;
-    if (num_connected_terminals >= LIMITS.max_connected_terminals) {
-      callback('Exceeded maximum number of child terminal connections.');
+    var num_connected_leaf_nodes = Object.keys(m_connected_leaf_nodes).length;
+    if (num_connected_leaf_nodes >= LIMITS.max_connected_leaf_nodes) {
+      callback('Exceeded maximum number of child leaf connections.');
       return;
     }
 
-    var hemlock_node_id = connection_to_child_node.childNodeId();
+    var node_id = connection_to_child_node.childNodeId();
 
-    if (hemlock_node_id in m_connected_terminals) {
-      callback(`A connected terminal with id=${hemlock_node_id} already exists.`);
+    if (node_id in m_connected_leaf_nodes) {
+      callback(`A connected leaf with id=${node_id} already exists.`);
       return;
     }
 
     connection_to_child_node.onClose(function() {
-      remove_connected_terminal(hemlock_node_id);
+      remove_connected_leaf(node_id);
     });
 
-    // create a new HemlockConnectedTerminal object, and pass in the connection object
-    m_connected_terminals[hemlock_node_id] = new HemlockConnectedTerminal(connection_to_child_node, config);
+    // create a new HemlockConnectedLeaf object, and pass in the connection object
+    m_connected_leaf_nodes[node_id] = new HemlockConnectedLeaf(connection_to_child_node, config);
     callback(null);
   }
 
-  function remove_connected_terminal(hemlock_node_id) {
-    // remove the terminal from the manager
-    if (!(hemlock_node_id in m_connected_terminals)) {
+  function remove_connected_leaf(node_id) {
+    // remove the leaf from the manager
+    if (!(node_id in m_connected_leaf_nodes)) {
       // we don't have it anyway
       return;
     }
     // actually remove it
-    var logmsg = `Removing child terminal: ${hemlock_node_id}`;
+    var logmsg = `Removing child leaf: ${node_id}`;
     logger.info(logmsg);
     console.info(logmsg);
-    delete m_connected_terminals[hemlock_node_id];
+    delete m_connected_leaf_nodes[node_id];
   }
 }
 
-function HemlockConnectedTerminal(connection_to_child_node, config) {
-  // Encapsulate a single terminal (child node)
+function HemlockConnectedLeaf(connection_to_child_node, config) {
+  // Encapsulate a single leaf (child node)
   this.processHttpRequest = function(path, req, res) {
     processHttpRequest(path, req, res);
   };
@@ -171,7 +172,7 @@ function HemlockConnectedTerminal(connection_to_child_node, config) {
   };
 
   connection_to_child_node.onMessage(function(msg) {
-    process_message_from_connected_terminal(msg, function(err, response) {
+    process_message_from_connected_leaf(msg, function(err, response) {
       if (err) {
         connection_to_child_node.reportErrorAndCloseSocket(err);
         return;
@@ -186,20 +187,20 @@ function HemlockConnectedTerminal(connection_to_child_node, config) {
   });
 
   // todo: move this http client to the connection_to_child_node and handle all http stuff there
-  var m_http_over_websocket_client = new HttpOverWebSocketClient(send_message_to_terminal);
+  var m_http_over_websocket_client = new HttpOverWebSocketClient(send_message_to_leaf);
   m_http_over_websocket_client.onByteCount(function(num_bytes_in, num_bytes_out) {
-    config.incrementMetric('http_bytes_in_from_child_terminal', num_bytes_in);
-    config.incrementMetric('http_bytes_out_to_child_terminal', num_bytes_out);
+    config.incrementMetric('http_bytes_in_from_child_leaf', num_bytes_in);
+    config.incrementMetric('http_bytes_out_to_child_leaf', num_bytes_out);
   });
 
-  function send_message_to_terminal(msg) {
+  function send_message_to_leaf(msg) {
     connection_to_child_node.sendMessage(msg);
   }
 
   ////////////////////////////////////////////////////////////////////////
 
-  function process_message_from_connected_terminal(msg, callback) {
-    // We got a message msg from the terminal computer
+  function process_message_from_connected_leaf(msg, callback) {
+    // We got a message msg from the leaf computer
 
     // todo: move this http client to the connection_to_child_node and handle all http stuff there
     if (msg.message_type == 'http') {
@@ -220,7 +221,7 @@ function HemlockConnectedTerminal(connection_to_child_node, config) {
   }
 
   function processHttpRequest(path, req, res) {
-    // Forward a http request through the websocket to the terminal computer
+    // Forward a http request through the websocket to the leaf computer
 
     m_http_over_websocket_client.handleRequest(path, req, res);
   }
@@ -234,8 +235,8 @@ function HemlockConnectedChildHubManager(config) {
   this.connectedChildHubIds = function() {
     return Object.keys(m_connected_child_hubs);
   };
-  this.getConnectedChildHub = function(hemlock_node_id) {
-    return m_connected_child_hubs[hemlock_node_id] || null;
+  this.getConnectedChildHub = function(node_id) {
+    return m_connected_child_hubs[node_id] || null;
   };
 
   var m_connected_child_hubs = {};
@@ -254,7 +255,7 @@ function HemlockConnectedChildHubManager(config) {
   }
 
   function addConnectedChildHub(connection_to_child_node, callback) {
-    // Add a new connected terminal
+    // Add a new connected leaf
 
     var num_connected_child_hubs = Object.keys(m_connected_child_hubs).length;
     if (num_connected_child_hubs >= LIMITS.max_connected_child_hubs) {
@@ -262,21 +263,21 @@ function HemlockConnectedChildHubManager(config) {
       return;
     }
 
-    var hemlock_node_id = connection_to_child_node.childNodeId();
+    var node_id = connection_to_child_node.childNodeId();
 
-    if (hemlock_node_id in m_connected_child_hubs) {
-      callback(`A child hub with id=${hemlock_node_id} already exists.`);
+    if (node_id in m_connected_child_hubs) {
+      callback(`A child hub with id=${node_id} already exists.`);
       return;
     }
 
     connection_to_child_node.onClose(function() {
-      remove_connected_child_hub(hemlock_node_id);
+      remove_connected_child_hub(node_id);
     });
 
     // create a new HemlockConnectedChildHub object, and pass in the connection object
-    m_connected_child_hubs[hemlock_node_id] = new HemlockConnectedChildHub(connection_to_child_node, config);
+    m_connected_child_hubs[node_id] = new HemlockConnectedChildHub(connection_to_child_node, config);
 
-    m_connected_child_hubs[hemlock_node_id].sendMessage({
+    m_connected_child_hubs[node_id].sendMessage({
       command: 'set_top_hub_url',
       top_hub_url: config.topHubUrl()
     });
@@ -284,17 +285,17 @@ function HemlockConnectedChildHubManager(config) {
     callback(null);
   }
 
-  function remove_connected_child_hub(hemlock_node_id) {
-    // remove the terminal from the manager
-    if (!(hemlock_node_id in m_connected_child_hubs)) {
+  function remove_connected_child_hub(node_id) {
+    // remove the leaf from the manager
+    if (!(node_id in m_connected_child_hubs)) {
       // we don't have it anyway
       return;
     }
     // actually remove it
-    var logmsg = `Removing child hub: ${hemlock_node_id}`;
+    var logmsg = `Removing child hub: ${node_id}`;
     logger.info(logmsg);
     console.info(logmsg);
-    delete m_connected_child_hubs[hemlock_node_id];
+    delete m_connected_child_hubs[node_id];
   }
 }
 
@@ -352,7 +353,7 @@ function HemlockConnectedChildHub(connection_to_child_node, config) {
   ////////////////////////////////////////////////////////////////////////
 
   function process_message_from_connected_child_hub(msg, callback) {
-    // We got a message msg from the terminal computer
+    // We got a message msg from the leaf computer
 
     // todo: move this http client to the connection_to_child_node and handle all http stuff there
     if (msg.message_type == 'http') {
@@ -368,7 +369,7 @@ function HemlockConnectedChildHub(connection_to_child_node, config) {
   }
 
   function processHttpRequest(path, req, res) {
-    // Forward a http request through the websocket to the terminal computer
+    // Forward a http request through the websocket to the leaf computer
 
     m_http_over_websocket_client.handleRequest(path, req, res);
   }

@@ -16,11 +16,11 @@ const PoliteWebSocket = require(__dirname + '/politewebsocket.js').PoliteWebSock
 const logger = require(__dirname + '/logger.js').logger();
 
 // TODO: think of a better default range
-const HEMLOCK_TERMINAL_PORT_RANGE = process.env.HEMLOCK_TERMINAL_PORT_RANGE || '2000-3000';
-const HEMLOCK_TERMINAL_HOST = process.env.HEMLOCK_TERMINAL_HOST || 'localhost';
+const HEMLOCK_LEAF_PORT_RANGE = process.env.HEMLOCK_LEAF_PORT_RANGE || '2000-3000';
+const HEMLOCK_LEAF_HOST = process.env.HEMLOCK_LEAF_HOST || 'localhost';
 
-// hemlock node type: hub or terminal
-function HemlockNode(hemlock_node_directory, hemlock_node_type) {
+// hemlock node type: hub or leaf
+function HemlockNode(hemlock_node_directory, node_type) {
   this.setHttpServer = function(app) {
     m_http_server = app;
   };
@@ -30,8 +30,8 @@ function HemlockNode(hemlock_node_directory, hemlock_node_type) {
   this.setRootUrl = function(url) {
     m_root_url = url;
   };
-  this.setTerminalManager = function(MM) {
-    m_context.terminal_manager = MM;
+  this.setLeafManager = function(MM) {
+    m_context.leaf_manager = MM;
   };
   this.context = function() {
     return m_context;
@@ -47,7 +47,7 @@ function HemlockNode(hemlock_node_directory, hemlock_node_type) {
   let m_config_file_name = '';
   let m_config = null;
 
-  // only used for hemlock_node_type='hub'
+  // only used for node_type='hub'
   m_context.hub_manager = null;
 
   function initialize(opts, callback) {
@@ -58,7 +58,7 @@ function HemlockNode(hemlock_node_directory, hemlock_node_type) {
     m_config_directory_name = opts.config_directory_name;
     m_config_file_name = opts.config_file_name;
 
-    if (hemlock_node_type == 'hub')
+    if (node_type == 'hub')
       m_context.hub_manager = new HemlockHubManager(m_config);
 
     var steps = [];
@@ -70,7 +70,7 @@ function HemlockNode(hemlock_node_directory, hemlock_node_type) {
     steps.push(run_interactive_config);
     if (!opts.no_server) {
       steps.push(start_http_server);
-      if (hemlock_node_type == 'hub') {
+      if (node_type == 'hub') {
         steps.push(start_websocket_server);
       }
       steps.push(connect_to_parent_hub);
@@ -88,8 +88,8 @@ function HemlockNode(hemlock_node_directory, hemlock_node_type) {
 
     function create_config_if_needed(callback) {
       if (!m_config.configDirExists()) {
-        console.info(`Creating ${hemlock_node_type} configuration in ${m_config.hemlockNodeDirectory()}/${m_config_directory_name} ...`);
-        m_config.createNew(hemlock_node_type, opts, function(err) {
+        console.info(`Creating ${node_type} configuration in ${m_config.hemlockNodeDirectory()}/${m_config_directory_name} ...`);
+        m_config.createNew(node_type, opts, function(err) {
           if (err) {
             callback(err);
             return;
@@ -130,7 +130,7 @@ function HemlockNode(hemlock_node_directory, hemlock_node_type) {
         application: 'hemlock',
         directory: m_config.configDir() + '/logs'
       });
-      if (m_config.hemlockNodeType() != hemlock_node_type) {
+      if (m_config.hemlockNodeType() != node_type) {
         callback('Incorrect type for hemlock node: ' + m_config.hemlockNodeType());
         return;
       }
@@ -176,7 +176,7 @@ function HemlockNode(hemlock_node_directory, hemlock_node_type) {
       logger.info('Starting http server.', {
         port: app.port,
         protocol: app.protocol,
-        hemlock_node_type: hemlock_node_type
+        node_type: node_type
       });
       app.server.listen(listen_port, function() {
         console.info(`Server is running ${app.protocol} on port ${app.port}`);
@@ -188,12 +188,12 @@ function HemlockNode(hemlock_node_directory, hemlock_node_type) {
   function get_node_data_for_parent() {
     if (m_config.hemlockNodeType() == 'hub') {
       return m_context.hub_manager.nodeDataForParent();
-    } else if (m_config.hemlockNodeType() == 'terminal') {
-      if (!m_context.terminal_manager) {
-        console.error('Terminal manager not set.');
+    } else if (m_config.hemlockNodeType() == 'leaf') {
+      if (!m_context.leaf_manager) {
+        console.error('Leaf manager not set.');
         process.exit(-1);
       }
-      return m_context.terminal_manager.nodeDataForParent();
+      return m_context.leaf_manager.nodeDataForParent();
     } else {
       return {};
     }
@@ -220,7 +220,7 @@ function HemlockNode(hemlock_node_directory, hemlock_node_type) {
   function do_connect_to_parent_hub(opts, callback) {
     var parent_hub_url = m_config.getConfig('parent_hub_url');
     if ((!parent_hub_url) || (parent_hub_url == '.')) {
-      if (hemlock_node_type == 'terminal') {
+      if (node_type == 'leaf') {
         callback('No parent hub url specified.');
       } else {
         callback(null);
@@ -253,8 +253,8 @@ function HemlockNode(hemlock_node_directory, hemlock_node_type) {
         callback(err);
         return;
       }
-      if (m_context.terminal_manager) {
-        m_context.terminal_manager.restart();
+      if (m_context.leaf_manager) {
+        m_context.leaf_manager.restart();
       }
       callback(null);
     });
@@ -277,8 +277,8 @@ function HemlockNode(hemlock_node_directory, hemlock_node_type) {
   }
 
   function start_websocket_server(callback) {
-    if (hemlock_node_type != 'hub') {
-      console.error('start_websocket_server is only for hemlock_node_type=hub');
+    if (node_type != 'hub') {
+      console.error('start_websocket_server is only for node_type=hub');
       process.exit(-1);
     }
     //initialize the WebSocket server instance
@@ -307,8 +307,8 @@ function HemlockNode(hemlock_node_directory, hemlock_node_type) {
   }
 
   function on_new_websocket_connection(ws) {
-    if (hemlock_node_type != 'hub') {
-      console.error('on_new_websocket_connection is only for hemlock_node_type=hub');
+    if (node_type != 'hub') {
+      console.error('on_new_websocket_connection is only for node_type=hub');
       process.exit(-1);
     }
 
@@ -325,16 +325,16 @@ function HemlockNode(hemlock_node_directory, hemlock_node_type) {
       logger.info('Child has registered', {
         info: CC.childNodeRegistrationInfo()
       });
-      if (CC.childNodeType() == 'terminal') {
+      if (CC.childNodeType() == 'leaf') {
 
-        // Everything looks okay, let's add this terminal to our manager
-        const logmsg = `Adding child (terminal): ${CC.childNodeRegistrationInfo().name} (${CC.childNodeId()})`;
+        // Everything looks okay, let's add this leaf to our manager
+        const logmsg = `Adding child (leaf): ${CC.childNodeRegistrationInfo().name} (${CC.childNodeId()})`;
         logger.info(logmsg);
         console.info(logmsg);
 
-        m_context.hub_manager.connectedTerminalManager().addConnectedTerminal(CC, function(err) {
+        m_context.hub_manager.connectedLeafManager().addConnectedLeaf(CC, function(err) {
           if (err) {
-            PWS.sendErrorAndClose(`Error adding terminal: ${err}`);
+            PWS.sendErrorAndClose(`Error adding leaf: ${err}`);
             return;
           }
           // acknowledge receipt of the register message so that the child node can proceed
@@ -383,9 +383,9 @@ function HemlockNode(hemlock_node_directory, hemlock_node_type) {
   }
 
   function get_listen_port(callback) {
-    if (hemlock_node_type == 'terminal') {
+    if (node_type == 'leaf') {
       // TODO: figure out better method for determining port in range
-      get_free_port_in_range(HEMLOCK_TERMINAL_PORT_RANGE.split('-'), function(err, listen_port) {
+      get_free_port_in_range(HEMLOCK_LEAF_PORT_RANGE.split('-'), function(err, listen_port) {
         if (err) {
           callback(err);
           return;

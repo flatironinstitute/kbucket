@@ -15,11 +15,11 @@ function KBNodeApi(context) {
 
   let m_context = context;
 
-  function handle_nodeinfo(hemlock_node_id, req, res) {
+  function handle_nodeinfo(node_id, req, res) {
     m_context.config.incrementMetric('num_requests_nodeinfo');
     //allow_cross_domain_requests(req, res);
-    if (m_context.config.hemlockNodeId() != hemlock_node_id) {
-      route_http_request_to_node(hemlock_node_id, `${hemlock_node_id}/api/nodeinfo`, req, res);
+    if (m_context.config.hemlockNodeId() != node_id) {
+      route_http_request_to_node(node_id, `${node_id}/api/nodeinfo`, req, res);
       return;
     }
     let resp_msg = {
@@ -39,13 +39,13 @@ function KBNodeApi(context) {
         };
       }
 
-      resp_msg.child_terminals = {};
-      let CSM = m_context.hub_manager.connectedTerminalManager();
-      let child_terminal_ids = CSM.connectedTerminalIds();
-      for (let ii in child_terminal_ids) {
-        let id = child_terminal_ids[ii];
-        let SS = CSM.getConnectedTerminal(id);
-        resp_msg.child_terminals[id] = {
+      resp_msg.child_leaf_nodes = {};
+      let CSM = m_context.hub_manager.connectedLeafManager();
+      let child_leaf_ids = CSM.connectedLeafIds();
+      for (let ii in child_leaf_ids) {
+        let id = child_leaf_ids[ii];
+        let SS = CSM.getConnectedLeaf(id);
+        resp_msg.child_leaf_nodes[id] = {
           name: SS.name(),
           listen_url: SS.listenUrl()
         };
@@ -181,9 +181,9 @@ function KBNodeApi(context) {
     });
   }
 
-  function route_http_request_to_node(hemlock_node_id, path, req, res) {
+  function route_http_request_to_node(node_id, path, req, res) {
     logger.info('route_http_request_to_node', {
-      node_id: hemlock_node_id,
+      node_id: node_id,
       path: path,
       req_headers: req.headers
     });
@@ -191,7 +191,7 @@ function KBNodeApi(context) {
       send_500(res, 'Cannot route request from non-hub.');
       return;
     }
-    m_context.hub_manager.routeHttpRequestToNode(hemlock_node_id, path, req, res);
+    m_context.hub_manager.routeHttpRequestToNode(node_id, path, req, res);
   }
 
   function handle_download(kbshare_id, filename, req, res) {

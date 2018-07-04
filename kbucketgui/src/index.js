@@ -6,37 +6,45 @@ var DEFAULT_HUB_ID = 'a31ff6b646de';
 
 $(document).ready(function() {
   var query = parse_url_params();
-  window.query=query;
-  var kbnode_id = query.share || query.hub;
+  window.query = query;
+  var kbnode_id = query.share || query.hub || query.node_id;
   if (!kbnode_id) {
-    query.hub=DEFAULT_HUB_ID;
-    kbnode_id=query.hub;
+    query.hub = DEFAULT_HUB_ID;
+    kbnode_id = query.hub;
   }
   if (!kbnode_id) {
-    $('#main_window').append('Missing query parameter: share or hub');
+    $('#main_window').append('Missing query parameter: share, hub, or node_id');
     return;
   }
 
   if (query.kbucket_url) {
-    TOP_KBUCKET_HUB_URL=query.kbucket_url;
+    TOP_KBUCKET_HUB_URL = query.kbucket_url;
   }
 
-  find_lowest_accessible_hub_url(kbnode_id, function(err, hub_url) {
+  get_node_info(kbnode_id, function(err, resp) {
     if (err) {
       $('#main_window').append(err);
       return;
     }
-    if (query.share) {
-      var W = new KBShareBrowser();
-      W.setKBHubUrl(hub_url);
-      $('#main_window').append(W.element());
-      W.setKBShareId(query.share);
-    } else if (query.hub) {
-      var W = new KBHubBrowser();
-      W.setKBHubUrl(hub_url);
-      $('#main_window').append(W.element());
-      W.setKBHubId(query.hub);
-    }
+    let node_info=resp.info;
+    let node_type=node_info.node_type;
+    find_lowest_accessible_hub_url(kbnode_id, function(err, hub_url) {
+      if (err) {
+        $('#main_window').append(err);
+        return;
+      }
+      if ((node_type=='leaf')||(node_type=='share')) {
+        let W = new KBShareBrowser();
+        W.setKBHubUrl(hub_url);
+        $('#main_window').append(W.element());
+        W.setKBShareId(kbnode_id);
+      } else if (node_type=='hub') {
+        let W = new KBHubBrowser();
+        W.setKBHubUrl(hub_url);
+        $('#main_window').append(W.element());
+        W.setKBHubId(kbnode_id);
+      }
+    });
   });
 });
 
@@ -46,9 +54,9 @@ function find_lowest_accessible_hub_url(kbnode_id, callback) {
       callback(err);
       return;
     }
-    let info=resp.info||{};
-    let parent_hub_info=resp.parent_hub_info||{};
-    if ((accessible) && (info.kbnode_type == 'hub')) {
+    let info = resp.info || {};
+    let parent_hub_info = resp.parent_hub_info || {};
+    if ((accessible) && (info.node_type == 'hub')) {
       callback(null, info.listen_url);
       return;
     }
@@ -56,7 +64,7 @@ function find_lowest_accessible_hub_url(kbnode_id, callback) {
       callback('Unable to find accessible hub.');
       return;
     }
-    find_lowest_accessible_hub_url(parent_hub_info.kbnode_id, callback);
+    find_lowest_accessible_hub_url(parent_hub_info.kbnode_id||parent_hub_info.node_id, callback);
   });
 }
 
@@ -72,11 +80,11 @@ function get_node_info(kbnode_id, callback) {
       return;
     }
     //check accessible
-    var check_url=`${resp.info.listen_url}/${kbnode_id}/api/nodeinfo`;
-    console.info('Checking whether node ${kbnode_id} is accessible from this location...',check_url);
+    var check_url = `${resp.info.listen_url}/${kbnode_id}/api/nodeinfo`;
+    console.info(`Checking whether node ${kbnode_id} is accessible from this location... ${check_url}`);
     get_json(check_url, function(err, resp2) {
       var accessible = false;
-      if ((!err) && (resp2.info) && (resp2.info.kbnode_id == kbnode_id))
+      if ((!err) && (resp2.info) && ((resp2.info.kbnode_id||resp2.info.node_id) == kbnode_id))
         accessible = true;
       callback(null, resp, accessible);
     });
@@ -88,10 +96,10 @@ function get_json(url, callback) {
     url: url,
     dataType: 'json',
     success: function(data) {
-      callback(null,data);
+      callback(null, data);
     },
     error: function(err) {
-      callback('Error getting: '+url);
+      callback('Error getting: ' + url);
     }
   });
 }

@@ -28,13 +28,13 @@ init_opts.config_directory_name='.kbucket';
 init_opts.config_file_name='kbnode.json';
 init_opts.node_type_label='share';
 
-var X = new HemlockNode(share_directory, 'terminal');
+var X = new HemlockNode(share_directory, 'leaf');
 let context=X.context();
 let API=new KBNodeApi(context);
 let SS=new KBHttpServer(API);
 X.setHttpServer(SS.app());
-let TM=new TerminalManager();
-X.setTerminalManager(TM);
+let TM=new LeafManager();
+X.setLeafManager(TM);
 X.initialize(init_opts, function(err) {
   if (err) {
     console.error(err);
@@ -44,7 +44,7 @@ X.initialize(init_opts, function(err) {
   context.share_indexer.startIndexing();
 });
 
-function TerminalManager() {
+function LeafManager() {
   this.nodeDataForParent = function() {
     return context.share_indexer.nodeDataForParent();
   };

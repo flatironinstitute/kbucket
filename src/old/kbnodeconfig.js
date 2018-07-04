@@ -251,7 +251,7 @@ function KBNodeConfig(kbnode_directory) {
     } else {
       //clone only
       set_config('readonly', true);
-      set_config('kbnode_type', opts.info.kbnode_type);
+      set_config('kbnode_type', opts.info.kbnode_type||opts.info.node_type);
       set_config('name', opts.info.name);
       set_config('description', opts.info.description);
       set_config('owner', opts.info.owner);

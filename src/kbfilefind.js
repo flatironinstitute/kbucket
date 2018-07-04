@@ -18,7 +18,7 @@ function find_file(context, opts, callback) {
         urls.push(url0);
       }
       var visited = {}; //prevent infinite loop
-      var hub_id = share0.parent_hemlock_node_id;
+      var hub_id = share0.parent_node_id;
       while (hub_id) {
         if (visited[hub_id])
           break;
@@ -29,7 +29,7 @@ function find_file(context, opts, callback) {
             const url0 = hub0.listen_url + '/' + kbshare_id + '/download/' + result.path;
             urls.push(url0);
           }
-          hub_id = hub0.parent_hemlock_node_id;
+          hub_id = hub0.parent_node_id;
         } else {
           hub_id = null;
         }
@@ -105,14 +105,14 @@ function find_shares_with_file_in_child_hubs(context, opts, callback) {
 
 function find_child_shares_with_file(context, opts, callback) {
   // Find a file by checking all of the connected shares
-  var kbnode_ids = context.hub_manager.connectedTerminalManager().connectedTerminalIds();
+  var kbnode_ids = context.hub_manager.connectedLeafManager().connectedLeafIds();
 
   var results = [];
 
   // Loop sequentially through each share key
   // TODO: shall we allow this to be parallel / asynchronous?
   async.eachSeries(kbnode_ids, function(kbnode_id, cb) {
-    var SS = context.hub_manager.connectedTerminalManager().getConnectedTerminal(kbnode_id);
+    var SS = context.hub_manager.connectedLeafManager().getConnectedLeaf(kbnode_id);
     if (!SS) { //maybe it disappeared
       cb(); // go to the next one
       return;

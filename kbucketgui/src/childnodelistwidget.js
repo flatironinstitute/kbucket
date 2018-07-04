@@ -48,7 +48,7 @@ function ChildNodeListWidget() {
     }
     let url = `${m_kbhub_url}/${m_kbnode_id}/api/nodeinfo`;
     $.getJSON(url, {}, function(resp) {
-      m_child_shares = resp.child_shares || null;
+      m_child_shares = resp.child_shares || resp.child_leaf_nodes || null;
       m_child_hubs = resp.child_hubs || null;
       refresh();
     });

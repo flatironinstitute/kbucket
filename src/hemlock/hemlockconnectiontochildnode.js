@@ -16,7 +16,7 @@ function HemlockConnectionToChildNode(config) {
   };
   this.childNodeType = function() {
     if (!m_child_node_registration_info) return '';
-    return m_child_node_registration_info.hemlock_node_type;
+    return m_child_node_registration_info.node_type;
   };
   this.childNodeRegistrationInfo = function() {
     if (!m_child_node_registration_info) return {};
@@ -81,34 +81,34 @@ function HemlockConnectionToChildNode(config) {
   }
 
   function process_message_from_child_node(msg) {
-    if (!msg.hemlock_node_id) {
-      report_error_and_close_socket('hemlock_node_id not found in message');
+    if (!msg.node_id) {
+      report_error_and_close_socket('node_id not found in message');
       return;
     }
 
     // Set the hemlock_node id (should be received on first message)
     if (!m_child_node_id) {
-      m_child_node_id = msg.hemlock_node_id;
+      m_child_node_id = msg.node_id;
     }
 
-    if (!is_valid_hemlock_node_id(m_child_node_id)) {
+    if (!is_valid_node_id(m_child_node_id)) {
       // Not a valid node id. Close the connection.
       report_error_and_close_socket('Invalid node id');
       return;
     }
 
-    if (msg.hemlock_node_id != m_child_node_id) {
-      // The hemlock_node_id was set, but this message did not match. Close the connection.
-      report_error_and_close_socket('hemlock_node_id in message does not match previous messages.');
+    if (msg.node_id != m_child_node_id) {
+      // The node_id was set, but this message did not match. Close the connection.
+      report_error_and_close_socket('node_id in message does not match previous messages.');
       return;
     }
 
-    // If we are given the public key, remember it, and compare it to the hemlock_node_id
+    // If we are given the public key, remember it, and compare it to the node_id
     if ((msg.public_key) && (!m_child_public_key)) {
       m_child_public_key = msg.public_key;
-      var expected_hemlock_node_id = sha1(m_child_public_key).slice(0, 12);
-      if (expected_hemlock_node_id != m_child_node_id) {
-        PWS.sendErrorAndClose(`Child node id does not match public key (${m_child_node_id}<>${expected_hemlock_node_id})`);
+      var expected_node_id = sha1(m_child_public_key).slice(0, 12);
+      if (expected_node_id != m_child_node_id) {
+        PWS.sendErrorAndClose(`Child node id does not match public key (${m_child_node_id}<>${expected_node_id})`);
         return;
       }
     }
@@ -137,7 +137,7 @@ function HemlockConnectionToChildNode(config) {
         return;
       }
       // Check whether client (or user of client) agreed to share the resources
-      if (X.info.hemlock_node_type != 'hub') {
+      if (X.info.node_type != 'hub') {
         if (X.info.confirm_share != 'yes') {
           report_error_and_close_socket('Sharing of resources has not been confirmed');
           return;
@@ -195,8 +195,8 @@ function HemlockConnectionToChildNode(config) {
   }
 }
 
-function is_valid_hemlock_node_id(key) {
-  // check if a hemlock_node_id is valid
+function is_valid_node_id(key) {
+  // check if a node_id is valid
   // TODO: add detail and use regexp
   return ((8 <= key.length) && (key.length <= 64));
 }

@@ -9,7 +9,7 @@ const inquirer = require('inquirer');
 const email_validator = require('email-validator');
 const sha1 = require('node-sha1');
 
-// hemlock_node type = hub or terminal
+// hemlock_node type = hub or leaf
 function HemlockNodeConfig(hemlock_node_directory, options) {
   const that = this;
   this.configDir = function() {
@@ -18,11 +18,11 @@ function HemlockNodeConfig(hemlock_node_directory, options) {
   this.configDirExists = function() {
     return fs.existsSync(m_config_dir);
   };
-  this.createNew = function(hemlock_node_type, opts, callback) {
-    createNew(hemlock_node_type, opts, callback);
+  this.createNew = function(node_type, opts, callback) {
+    createNew(node_type, opts, callback);
   };
   this.generatePemFilesAndId =function(opts,callback) {
-    generate_pem_files_and_hemlock_node_id(opts,callback);
+    generate_pem_files_and_node_id(opts,callback);
   };
   this.initialize = function(callback) {
     initialize(callback);
@@ -31,10 +31,10 @@ function HemlockNodeConfig(hemlock_node_directory, options) {
     runInteractiveConfiguration(opts, callback);
   };
   this.hemlockNodeId = function() {
-    return m_hemlock_node_id;
+    return m_node_id;
   };
   this.hemlockNodeType = function() {
-    return m_hemlock_node_type;
+    return m_node_type;
   };
   this.hemlockNodeDirectory = function() {
     return hemlock_node_directory;
@@ -84,14 +84,14 @@ function HemlockNodeConfig(hemlock_node_directory, options) {
 
   var m_config_dir = hemlock_node_directory + '/'+options.config_directory_name;
   var m_config_file_path = m_config_dir + '/'+options.config_file_name;
-  var m_hemlock_node_id = ''; //set by initialize
-  var m_hemlock_node_type = ''; //set by initialize
+  var m_node_id = ''; //set by initialize
+  var m_node_type = ''; //set by initialize
   var m_listen_port = 0;
   var m_top_hub_url = '';
   var m_on_top_hub_url_changed_handlers = [];
   var m_metrics = {};
 
-  function createNew(hemlock_node_type, opts, callback) {
+  function createNew(node_type, opts, callback) {
     if (!fs.existsSync(hemlock_node_directory)) {
       callback('Directory does not exist: ' + hemlock_node_directory);
       return;
@@ -101,11 +101,11 @@ function HemlockNodeConfig(hemlock_node_directory, options) {
       return;
     }
     if (fs.existsSync(hemlock_node_directory + '/'+options.config_directory_name)) {
-      callback(`Cannot create new ${hemlock_node_type}. File or directory ${options.config_directory_name} already exists.`);
+      callback(`Cannot create new ${node_type}. File or directory ${options.config_directory_name} already exists.`);
       return;
     }
     fs.mkdirSync(hemlock_node_directory + '/'+options.config_directory_name);
-    set_config('node_type', hemlock_node_type);
+    set_config('node_type', node_type);
     callback(null);
   }
 
@@ -124,17 +124,17 @@ function HemlockNodeConfig(hemlock_node_directory, options) {
       if (get_config('kbnode_type')=='hub')
         set_config('node_type','hub');
       else if (get_config('kbnode_type')=='share')
-        set_config('node_type','terminal');
+        set_config('node_type','leaf');
     }
     if ((!get_config('node_id'))&&(get_config('kbnode_id'))) {
       set_config('node_id',get_config('kbnode_id'));  
     }
     ///////////////////////////////////////////////////////////////////////////
 
-    m_hemlock_node_id = get_config('node_id');
-    m_hemlock_node_type = get_config('node_type');
+    m_node_id = get_config('node_id');
+    m_node_type = get_config('node_type');
 
-    if ((!m_hemlock_node_id) || (!m_hemlock_node_type)) {
+    if ((!m_node_id) || (!m_node_type)) {
       callback('Invalid node.');
       return;
     }
@@ -153,12 +153,12 @@ function HemlockNodeConfig(hemlock_node_directory, options) {
         validate: is_valid_hemlock_node_name
       });
       var str;
-      if (m_hemlock_node_type == 'hub') {
+      if (m_node_type == 'hub') {
         str = 'Are you hosting this hub for scientific research purposes (yes/no)?';
-      } else if (m_hemlock_node_type == 'terminal') {
+      } else if (m_node_type == 'leaf') {
         str = 'Are you sharing these resources for scientific research purposes (yes/no)?';
       } else {
-        console.error('Unexpected hemlock_node type: ' + m_hemlock_node_type);
+        console.error('Unexpected hemlock_node type: ' + m_node_type);
         process.exit(-1);
       }
       questions.push({
@@ -190,7 +190,7 @@ function HemlockNodeConfig(hemlock_node_directory, options) {
         default: get_config('owner_email') || user_settings.get('default_owner_email') || '',
         validate: is_valid_email
       });
-      if (m_hemlock_node_type == 'terminal') {
+      if (m_node_type == 'leaf') {
         questions.push({
           //type: 'list',
           type: 'input',
@@ -214,7 +214,7 @@ function HemlockNodeConfig(hemlock_node_directory, options) {
           validate: is_valid_url
         });
       }
-      if (m_hemlock_node_type == 'hub') {
+      if (m_node_type == 'hub') {
         questions.push({
           type: 'input',
           name: 'listen_port',
@@ -240,7 +240,7 @@ function HemlockNodeConfig(hemlock_node_directory, options) {
     } else {
       //clone only
       set_config('readonly', true);
-      set_config('node_type', opts.info.hemlock_node_type);
+      set_config('node_type', opts.info.node_type);
       set_config('name', opts.info.name);
       set_config('description', opts.info.description);
       set_config('owner', opts.info.owner);
@@ -343,7 +343,7 @@ function HemlockNodeConfig(hemlock_node_directory, options) {
     return url;
   }
 
-  function generate_pem_files_and_hemlock_node_id(opts, callback) {
+  function generate_pem_files_and_node_id(opts, callback) {
     if (!opts.clone_only) {
       if (get_config('node_id')) {
         callback('Cannot generate public/private keys because node id has already been set.');
@@ -354,10 +354,10 @@ function HemlockNodeConfig(hemlock_node_directory, options) {
       var public_key = pair.public;
       write_text_file(m_config_dir + '/private.pem', private_key);
       write_text_file(m_config_dir + '/public.pem', public_key);
-      var hemlock_node_id = sha1(public_key).slice(0, 12); //important
-      set_config('node_id', hemlock_node_id);
+      var node_id = sha1(public_key).slice(0, 12); //important
+      set_config('node_id', node_id);
     } else {
-      set_config('node_id', opts.info.hemlock_node_id);
+      set_config('node_id', opts.info.node_id);
     }
     callback();
   }
@@ -394,8 +394,8 @@ function HemlockNodeConfig(hemlock_node_directory, options) {
 
   function getNodeInfo() {
     var ret = {
-      hemlock_node_id: that.hemlockNodeId(),
-      hemlock_node_type: that.hemlockNodeType(),
+      node_id: that.hemlockNodeId(),
+      node_type: that.hemlockNodeType(),
       name: that.getConfig('name'),
       description: that.getConfig('description'),
       owner: that.getConfig('owner'),

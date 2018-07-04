@@ -71,11 +71,11 @@ function KBNodeInfoWidget() {
     let tablerows = [];
     tablerows.push({
       label: 'Name',
-      value: `${m_info.name} (${m_info.kbnode_id})`
+      value: `${m_info.name} (${m_info.kbnode_id||m_info.node_id})`
     });
     tablerows.push({
       label: 'Type',
-      value: m_info.kbnode_type
+      value: m_info.kbnode_type||m_info.node_type
     });
     tablerows.push({
       label: 'owner',
@@ -88,7 +88,7 @@ function KBNodeInfoWidget() {
     if (parent_info) {
       tablerows.push({
         label: 'Parent hub',
-        value: `${parent_info.name} (<a href=# id=open_parent_hub>${parent_info.kbnode_id}</a>)`
+        value: `${parent_info.name} (<a href=# id=open_parent_hub>${parent_info.kbnode_id||parent_info.node_id}</a>)`
       });
     } else {
       tablerows.push({
@@ -141,7 +141,7 @@ function KBNodeInfoWidget() {
 
     table.find('#open_parent_hub').click(function() {
       let query=window.query||{};
-      let url=`?hub=${parent_info.kbnode_id}`;
+      let url=`?hub=${parent_info.kbnode_id||parent_info.node_id}`;
       if (query.kbucket_url)
         url+=`&kbucket_url=${query.kbucket_url}`;
       window.location.href = url;

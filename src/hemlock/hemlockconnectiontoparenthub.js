@@ -78,20 +78,20 @@ function HemlockConnectionToParentHub(config) {
 
     //tmp for backward compatibility
     let kbnode_type=config.hemlockNodeType(); 
-    if (kbnode_type=='terminal')
+    if (kbnode_type=='leaf')
       kbnode_type='share';
 
     var info = {
       listen_url: `${listen_url}`,
       name: config.getConfig('name'),
-      hemlock_node_type: config.hemlockNodeType(),
+      node_type: config.hemlockNodeType(),
       kbnode_type: kbnode_type, //tmp for backward compatibility
       scientific_research: config.getConfig('scientific_research'),
       description: config.getConfig('description'),
       owner: config.getConfig('owner'),
       owner_email: config.getConfig('owner_email')
     };
-    if (config.hemlockNodeType() == 'terminal') {
+    if (config.hemlockNodeType() == 'leaf') {
       info.confirm_share = config.getConfig('confirm_share');
     }
     sendMessage({
@@ -137,7 +137,7 @@ function HemlockConnectionToParentHub(config) {
     } else if (msg.command == 'confirm_registration') {
       console.info(`Connected to parent hub: ${msg.info.name}`);
       if (m_parent_hub_url) {
-        var web_interface_url = `https://hemlockview.herokuapp.com/${config.hemlockNodeId()}`;
+        var web_interface_url = `https://kbucketgui.herokuapp.com/?node_id=${config.hemlockNodeId()}`;
         console.info(`Web interface: ${web_interface_url}`);
       }
       m_parent_hub_info = msg.info;
@@ -152,11 +152,11 @@ function HemlockConnectionToParentHub(config) {
 
   function sendMessage(msg) {
     msg.timestamp = (new Date()) - 0;
-    msg.hemlock_node_id = config.hemlockNodeId();
+    msg.node_id = config.hemlockNodeId();
     var signature = sign_message(msg, config.privateKey());
     var X = {
       message: msg,
-      hemlock_node_id: config.hemlockNodeId(),
+      node_id: config.hemlockNodeId(),
       kbnode_id: config.hemlockNodeId(), //tmp for backward compatibility
       signature: signature
     };
