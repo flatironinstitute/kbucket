@@ -131,6 +131,8 @@ function HemlockNodeConfig(hemlock_node_directory, options) {
     }
     ///////////////////////////////////////////////////////////////////////////
 
+    set_config('network_type',options.network_type||'kbucket');
+
     m_node_id = get_config('node_id');
     m_node_type = get_config('node_type');
 

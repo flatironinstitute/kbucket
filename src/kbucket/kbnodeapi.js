@@ -1,7 +1,7 @@
 const fs = require('fs');
 const async = require('async');
 
-const logger = require(__dirname + '/hemlock/logger.js').logger();
+const logger = require(__dirname + '/../hemlock/logger.js').logger();
 const find_file = require(__dirname+'/kbfilefind.js').find_file;
 
 exports.KBNodeApi = KBNodeApi;

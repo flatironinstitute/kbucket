@@ -2,7 +2,7 @@
 
 const fs = require('fs');
 
-const HemlockNode = require(__dirname + '/hemlock/hemlocknode.js').HemlockNode;
+const HemlockNode = require(__dirname + '/../hemlock/hemlocknode.js').HemlockNode;
 const KBHttpServer=require(__dirname+'/kbhttpserver.js').KBHttpServer;
 const KBNodeApi=require(__dirname+'/kbnodeapi.js').KBNodeApi;
 const KBNodeShareIndexer = require(__dirname + '/kbnodeshareindexer.js').KBNodeShareIndexer;
@@ -27,6 +27,7 @@ if ('auto' in CLP.namedParameters) {
 init_opts.config_directory_name='.kbucket';
 init_opts.config_file_name='kbnode.json';
 init_opts.node_type_label='share';
+init_opts.network_type='kbucket';
 
 var X = new HemlockNode(share_directory, 'leaf');
 let context=X.context();

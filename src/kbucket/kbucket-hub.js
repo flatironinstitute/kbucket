@@ -2,7 +2,7 @@
 
 const fs=require('fs');
 
-const HemlockNode=require(__dirname+'/hemlock/hemlocknode.js').HemlockNode;
+const HemlockNode=require(__dirname+'/../hemlock/hemlocknode.js').HemlockNode;
 const KBHttpServer=require(__dirname+'/kbhttpserver.js').KBHttpServer;
 const KBNodeApi=require(__dirname+'/kbnodeapi.js').KBNodeApi;
 
@@ -26,6 +26,7 @@ if ('auto' in CLP.namedParameters) {
 init_opts.config_directory_name='.kbucket';
 init_opts.config_file_name='kbnode.json';
 init_opts.node_type_label='hub';
+init_opts.network_type='kbucket';
 
 var X = new HemlockNode(hub_directory, 'hub');
 let context=X.context();

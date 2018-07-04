@@ -27,6 +27,8 @@ function HemlockConnectionToParentHub(config) {
   var m_parent_hub_url = '';
 
   function initialize(parent_hub_url, callback) {
+    console.info(`Network type: ${config.getConfig('network_type')}`);
+    console.info(`Node id: ${config.hemlockNodeId()}`);
     m_parent_hub_url = parent_hub_url;
     var parent_hub_ws_url = get_websocket_url_from_http_url(parent_hub_url);
     m_parent_hub_socket = new PoliteWebSocket({
@@ -136,9 +138,11 @@ function HemlockConnectionToParentHub(config) {
       config.setTopHubUrl(msg.top_hub_url);
     } else if (msg.command == 'confirm_registration') {
       console.info(`Connected to parent hub: ${msg.info.name}`);
-      if (m_parent_hub_url) {
-        var web_interface_url = `https://kbucketgui.herokuapp.com/?node_id=${config.hemlockNodeId()}`;
-        console.info(`Web interface: ${web_interface_url}`);
+      if (config.getConfig('network_type')=='kbucket') {
+        if (m_parent_hub_url) {
+          var web_interface_url = `https://kbucketgui.herokuapp.com/?node_id=${config.hemlockNodeId()}`;
+          console.info(`Web interface: ${web_interface_url}`);
+        }
       }
       m_parent_hub_info = msg.info;
     } else if (msg.message == 'ok') {
@@ -153,6 +157,7 @@ function HemlockConnectionToParentHub(config) {
   function sendMessage(msg) {
     msg.timestamp = (new Date()) - 0;
     msg.node_id = config.hemlockNodeId();
+    msg.network_type = config.getConfig('network_type')||'kbucket';
     var signature = sign_message(msg, config.privateKey());
     var X = {
       message: msg,

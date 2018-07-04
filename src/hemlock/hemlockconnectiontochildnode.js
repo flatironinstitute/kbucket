@@ -120,6 +120,11 @@ function HemlockConnectionToChildNode(config) {
       return;
     }
 
+    if (X.network_type!=config.getConfig('network_type')) {
+      report_error_and_close_socket(`network types do not match: ${X.network_type} <> ${config.getConfig('network_type')}`);
+      return;  
+    }
+
     if (!verify_message_signature(X, msg.signature || '', m_child_public_key)) {
       report_error_and_close_socket('Unable to verify message using signature');
       return;
