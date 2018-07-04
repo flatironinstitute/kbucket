@@ -21,8 +21,8 @@ function HemlockNodeConfig(hemlock_node_directory, options) {
   this.createNew = function(node_type, opts, callback) {
     createNew(node_type, opts, callback);
   };
-  this.generatePemFilesAndId =function(opts,callback) {
-    generate_pem_files_and_node_id(opts,callback);
+  this.generatePemFilesAndId = function(opts, callback) {
+    generate_pem_files_and_node_id(opts, callback);
   };
   this.initialize = function(callback) {
     initialize(callback);
@@ -74,7 +74,7 @@ function HemlockNodeConfig(hemlock_node_directory, options) {
     return getNodeInfo();
   };
   this.incrementMetric = function(name, increment) {
-    if (increment===undefined) increment=1;
+    if (increment === undefined) increment = 1;
     m_metrics[name] = (m_metrics[name] || 0) + increment;
     schedule_write_metrics();
   };
@@ -82,8 +82,8 @@ function HemlockNodeConfig(hemlock_node_directory, options) {
     return m_metrics;
   };
 
-  var m_config_dir = hemlock_node_directory + '/'+options.config_directory_name;
-  var m_config_file_path = m_config_dir + '/'+options.config_file_name;
+  var m_config_dir = hemlock_node_directory + '/' + options.config_directory_name;
+  var m_config_file_path = m_config_dir + '/' + options.config_file_name;
   var m_node_id = ''; //set by initialize
   var m_node_type = ''; //set by initialize
   var m_listen_port = 0;
@@ -100,11 +100,11 @@ function HemlockNodeConfig(hemlock_node_directory, options) {
       callback('Not a directory: ' + hemlock_node_directory);
       return;
     }
-    if (fs.existsSync(hemlock_node_directory + '/'+options.config_directory_name)) {
+    if (fs.existsSync(hemlock_node_directory + '/' + options.config_directory_name)) {
       callback(`Cannot create new ${node_type}. File or directory ${options.config_directory_name} already exists.`);
       return;
     }
-    fs.mkdirSync(hemlock_node_directory + '/'+options.config_directory_name);
+    fs.mkdirSync(hemlock_node_directory + '/' + options.config_directory_name);
     set_config('node_type', node_type);
     callback(null);
   }
@@ -120,18 +120,18 @@ function HemlockNodeConfig(hemlock_node_directory, options) {
     }
 
     ///////////////////////////////////////////////////////////////////////////
-    if ((!get_config('node_type'))&&(get_config('kbnode_type'))) {
-      if (get_config('kbnode_type')=='hub')
-        set_config('node_type','hub');
-      else if (get_config('kbnode_type')=='share')
-        set_config('node_type','leaf');
+    if ((!get_config('node_type')) && (get_config('kbnode_type'))) {
+      if (get_config('kbnode_type') == 'hub')
+        set_config('node_type', 'hub');
+      else if (get_config('kbnode_type') == 'share')
+        set_config('node_type', 'leaf');
     }
-    if ((!get_config('node_id'))&&(get_config('kbnode_id'))) {
-      set_config('node_id',get_config('kbnode_id'));  
+    if ((!get_config('node_id')) && (get_config('kbnode_id'))) {
+      set_config('node_id', get_config('kbnode_id'));
     }
     ///////////////////////////////////////////////////////////////////////////
 
-    set_config('network_type',options.network_type||'kbucket');
+    set_config('network_type', options.network_type || 'kbucket');
 
     m_node_id = get_config('node_id');
     m_node_type = get_config('node_type');
@@ -176,7 +176,7 @@ function HemlockNodeConfig(hemlock_node_directory, options) {
         message: `Brief description of this ${options.node_type_label}:`,
         default: get_config('description') || '',
         validate: is_valid_description,
-        optional:false
+        optional: false
       });
       questions.push({
         type: 'input',
@@ -192,6 +192,9 @@ function HemlockNodeConfig(hemlock_node_directory, options) {
         default: get_config('owner_email') || user_settings.get('default_owner_email') || '',
         validate: is_valid_email
       });
+      let default_parent_hub_url = 'https://kbucket.flatironinstitute.org';
+      if (get_config('network_type') == 'lari')
+        default_parent_hub_url = 'https://larihub.org';
       if (m_node_type == 'leaf') {
         questions.push({
           //type: 'list',
@@ -212,7 +215,7 @@ function HemlockNodeConfig(hemlock_node_directory, options) {
           type: 'input',
           name: 'parent_hub_url',
           message: 'Connect to hub:',
-          default: get_config('parent_hub_url') || 'https://kbucket.flatironinstitute.org',
+          default: get_config('parent_hub_url') || default_parent_hub_url,
           validate: is_valid_url
         });
       }
@@ -235,7 +238,7 @@ function HemlockNodeConfig(hemlock_node_directory, options) {
           type: 'input',
           name: 'parent_hub_url',
           message: 'Parent hub url (use . for none):',
-          default: get_config('parent_hub_url') || 'https://kbucket.flatironinstitute.org',
+          default: get_config('parent_hub_url') || default_parent_hub_url,
           validate: is_valid_url
         });
       }
@@ -256,7 +259,7 @@ function HemlockNodeConfig(hemlock_node_directory, options) {
           set_config(qq.name, qq.default);
         } else {
           if (!qq.optional) {
-            console.error('Aborting due to missing required field: '+qq.name);
+            console.error('Aborting due to missing required field: ' + qq.name);
             process.exit(-1);
           };
         }
