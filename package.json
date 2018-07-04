@@ -3,7 +3,6 @@
   "version": "0.4.0",
   "description": "Share data for scientific research",
   "scripts": {
-    "postinstall": "(cd src && npm install && cd ..);",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {
@@ -19,5 +18,22 @@
     "url": "https://github.com/flatironinstitute/kbucket/issues"
   },
   "homepage": "https://github.com/flatironinstitute/kbucket#readme",
-  "dependencies": {}
+  "dependencies": {
+    "async": "^2.6.1",
+    "axios": "^0.18.0",
+    "chokidar": "^2.0.3",
+    "cors": "^2.8.4",
+    "email-validator": "^2.0.4",
+    "express": "^4.16.3",
+    "find-port": "^2.0.1",
+    "inquirer": "^6.0.0",
+    "jsondiffpatch": "^0.3.10",
+    "keypair": "^1.0.1",
+    "node-sha1": "^1.0.1",
+    "request": "^2.87.0",
+    "user-settings": "^0.2.0",
+    "winston": "^3.0.0",
+    "winston-daily-rotate-file": "^3.2.1",
+    "ws": "^5.2.0"
+  }
 }
