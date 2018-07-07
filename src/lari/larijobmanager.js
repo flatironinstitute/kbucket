@@ -1,6 +1,8 @@
 exports.LariJobManager = LariJobManager;
 exports.LariProcessorJob = LariProcessorJob;
 
+const async = require('async');
+
 function LariJobManager() {
   this.addJob = function(J) {
     if (J.jobId() in m_jobs) {
@@ -42,6 +44,9 @@ function LariProcessorJob() {
   this.setLariDirectory = function(directory) {
     m_lari_directory = directory;
   };
+  this.setShareIndexer = function(indexer) {
+    m_share_indexer = indexer;
+  };
   this.jobId = function() {
     return m_job_id;
   };
@@ -77,13 +82,14 @@ function LariProcessorJob() {
   let m_latest_console_output = '';
   let m_job_id = make_random_id(10); //internal for now (just for naming the temporary files)
   let m_lari_directory = '';
+  let m_share_indexer = null;
 
   function start(processor_name, inputs, outputs, parameters, opts, callback) {
     if (!m_lari_directory) {
       callback('Lari directory not set.');
       return;
     }
-    let exe = 'ml-queue-process';
+    let exe = 'ml-run-process';
     if (opts.run_mode == 'exec') exe = 'ml-exec-process';
     else if (opts.run_mode == 'run') exe = 'ml-run-process';
     else if (opts.run_mode == 'queue') exe = 'ml-queue-process';
@@ -105,12 +111,13 @@ function LariProcessorJob() {
           args.push(key + ':' + val0);
         }
       } else {
-        val = input_to_string(val, key);
-        if (!val) {
+        let val_str = input_to_string(val, key);
+        if (!val_str) {
+          console.error(`Invalid input ${key} `, val);
           callback(`Invalid input: ${key}`);
           return;
         }
-        args.push(key + ':' + val);
+        args.push(key + ':' + val_str);
       }
     }
 
@@ -127,17 +134,17 @@ function LariProcessorJob() {
       }
     }
 
-    let tmp_dir = m_lari_directory + '/tmp';
-    mkdir_if_needed(tmp_dir);
+    let rel_outputs_dir = 'outputs';
+    mkdir_if_needed(m_lari_directory + '/' + rel_outputs_dir);
 
     // Handle outputs
     args.push('--outputs');
-    let tmp_output_files = {};
+    let rel_local_output_files = {};
     for (let key in outputs) {
       if (outputs[key]) {
-        let tmp_fname = tmp_dir + '/lari_output_' + m_job_id + '_' + key + '.prv';
-        args.push(key + ':' + tmp_fname);
-        tmp_output_files[key] = tmp_fname;
+        let rel_local_fname = rel_outputs_dir + '/' + m_job_id + '_' + key;
+        args.push(key + ':' + m_lari_directory + '/' + rel_local_fname);
+        rel_local_output_files[key] = rel_local_fname;
       }
     }
 
@@ -145,7 +152,6 @@ function LariProcessorJob() {
     setTimeout(housekeeping, 1000);
 
     // Start process
-    console.log('Running: ' + exe + ' ' + args.join(' '));
     m_process_object = execute_and_read_output(exe, args, {
       on_stdout: on_stdout,
       on_stderr: on_stderr
@@ -167,32 +173,43 @@ function LariProcessorJob() {
         return;
       }
       let output_prv_objects = {};
-      let missing_outputs = false;
-      for (let key in tmp_output_files) {
-        let tmp_fname = tmp_output_files[key];
-        if (require('fs').existsSync(tmp_fname)) {
-          let obj = read_json_file(tmp_fname);
-          output_prv_objects[key] = obj;
-          remove_file(tmp_fname);
-        } else {
-          missing_outputs = true;
-          output_prv_objects[key] = null;
+      let rel_local_output_file_keys = Object.keys(rel_local_output_files);
+      async.eachSeries(rel_local_output_file_keys, function(key, cb) {
+        let rel_local_fname = rel_local_output_files[key];
+        if (!require('fs').existsSync(m_lari_directory + '/' + rel_local_fname)) {
+          m_result = {
+            success: false,
+            error: `Missing output file ${key}`
+          };
+          m_is_complete = true;
+          return;
         }
-      }
-      if (!missing_outputs) {
+        console_msg('Waiting for prv object for output: '+key);
+        m_share_indexer.waitForPrvForIndexedFile(rel_local_fname, function(err, prv) {
+          if (err) {
+            m_result = {
+              success: false,
+              error: `Problem waiting for prv object of output file  ${key}`
+            };
+            m_is_complete = true;
+            return;
+          }
+          output_prv_objects[key] = prv;
+          cb();
+        });
+      }, function() {
         m_result = {
           success: true,
           outputs: output_prv_objects
         };
         m_is_complete = true;
-      } else {
-        m_result = {
-          success: false,
-          error: 'Some outputs were missing.'
-        };
-        m_is_complete = true;
-      }
+      });
+
     });
+
+    function console_msg(txt) {
+      m_latest_console_output += txt + '\n';
+    }
 
     function on_stdout(txt) {
       m_latest_console_output += txt;
@@ -214,13 +231,13 @@ function LariProcessorJob() {
       if (!('original_checksum' in X)) {
         return null;
       }
-      let tmp_dir = m_lari_directory + '/tmp';
-      mkdir_if_needed(tmp_dir);
-      let tmp_fname = tmp_dir + '/lari_input_' + m_job_id + '_' + key + '.prv';
-      if (!lari_write_text_file(tmp_fname, JSON.stringify(X, null, 4))) {
+      let inputs_dir = m_lari_directory + '/inputs';
+      mkdir_if_needed(inputs_dir);
+      let local_fname = inputs_dir + '/' + m_job_id + '_' + key + '.prv';
+      if (!lari_write_text_file(local_fname, JSON.stringify(X, null, 4))) {
         return null;
       }
-      return tmp_fname;
+      return local_fname;
     } else {
       return null;
     }
@@ -239,7 +256,7 @@ function LariProcessorJob() {
       return;
     }
     if (m_process_object) {
-      console.log('Canceling process: ' + m_process_object.pid);
+      console.info('Canceling process: ' + m_process_object.pid);
       m_process_object.stdout.pause();
       m_process_object.kill('SIGTERM');
       m_is_complete = true;
@@ -258,7 +275,7 @@ function LariProcessorJob() {
     let timeout = 60000;
     let elapsed_since_keep_alive = that.elapsedSinceKeepAlive();
     if (elapsed_since_keep_alive > timeout) {
-      console.log('Canceling process due to keep-alive timeout');
+      console.info('Canceling process due to keep-alive timeout');
       cancel();
     } else {
       setTimeout(housekeeping, 1000);
@@ -322,12 +339,12 @@ function lari_write_text_file(fname, txt) {
 }
 
 function execute_and_read_output(exe, args, opts, callback) {
-  console.log('RUNNING: ' + exe + ' ' + args.join(' '));
+  console.info('RUNNING: ' + exe + ' ' + args.join(' '));
   let P;
   try {
     P = require('child_process').spawn(exe, args);
   } catch (err) {
-    console.log(err);
+    console.error(err);
     callback("Problem launching: " + exe + " " + args.join(" "));
     return;
   }

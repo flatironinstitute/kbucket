@@ -74,7 +74,7 @@ function LariNodeApi(context) {
     }
     m_context.config.incrementMetric('num_requests_run_process');
     if (m_context.config.hemlockNodeId() != leaf_node_id) {
-      route_http_request_to_node(leaf_node_id, `${leaf_node_id}/api/nodeinfo`, req, res);
+      route_http_request_to_node(leaf_node_id, `${leaf_node_id}/api/run_process`, req, res);
       return;
     }
     if (m_context.config.hemlockNodeType() != 'leaf') {
@@ -84,6 +84,11 @@ function LariNodeApi(context) {
 
     let JJ = new LariProcessorJob();
     JJ.setLariDirectory(m_context.config.hemlockNodeDirectory());
+    if (!m_context.share_indexer) {
+      console.error('share_indexer not set (in handle_run_process');
+      send_500(res,'share_indexer not set.');
+    }
+    JJ.setShareIndexer(m_context.share_indexer);
     let processor_name = obj.processor_name;
     let inputs = obj.inputs || {};
     let outputs = obj.outputs || {};
@@ -114,14 +119,13 @@ function LariNodeApi(context) {
 
   function handle_probe_process(leaf_node_id, req, res) {
     let obj = req.body || {};
-    console.log(obj);
     if (typeof(obj) != 'object') {
       send_500(res, 'Unexpected request body type.');
       return;
     }
     m_context.config.incrementMetric('num_requests_probe_process');
     if (m_context.config.hemlockNodeId() != leaf_node_id) {
-      route_http_request_to_node(leaf_node_id, `${leaf_node_id}/api/nodeinfo`, req, res);
+      route_http_request_to_node(leaf_node_id, `${leaf_node_id}/api/probe_process`, req, res);
       return;
     }
     if (m_context.config.hemlockNodeType() != 'leaf') {
@@ -159,7 +163,7 @@ function LariNodeApi(context) {
     }
     m_context.config.incrementMetric('num_requests_cancel_process');
     if (m_context.config.hemlockNodeId() != leaf_node_id) {
-      route_http_request_to_node(leaf_node_id, `${leaf_node_id}/api/nodeinfo`, req, res);
+      route_http_request_to_node(leaf_node_id, `${leaf_node_id}/api/cancel_process`, req, res);
       return;
     }
     if (m_context.config.hemlockNodeType() != 'leaf') {

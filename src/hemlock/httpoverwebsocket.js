@@ -202,7 +202,8 @@ function HttpOverWebSocketClient(message_sender) {
       path: path, // path of the url in the request
       query: req.query,
       headers: req.headers, // request headers
-      request_id: req_id // the unique id used in all correspondence
+      request_id: req_id, // the unique id used in all correspondence
+      body: req.body||undefined
     });
 
     var sent = false;
@@ -348,6 +349,13 @@ function HttpRequest(forward_url, on_message_handler) {
         error: 'Error in request: ' + err.message
       });
     });
+    if (msg.body) {
+      let body=msg.body;
+      if (typeof(body)=='object') {
+        body=JSON.stringify(body);
+      }
+      m_request.write(body);
+    }
   }
 
   function writeRequestData(data) {

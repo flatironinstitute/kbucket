@@ -86,7 +86,6 @@ function HemlockHubManager(config) {
       const HH_child = m_connected_child_hub_manager.getConnectedChildHub(id);
       var data0 = HH_child.childNodeData();
       var dn0 = data0.descendant_nodes || {};
-      console.log('dn0',dn0);
       if (node_id in dn0) {
         HH_child.processHttpRequest(path, req, res);
         return;

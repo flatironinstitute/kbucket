@@ -179,7 +179,7 @@ function HemlockNode(hemlock_node_directory, node_type) {
         node_type: node_type
       });
       app.server.listen(listen_port, function() {
-        console.info(`Server is running ${app.protocol} on port ${app.port}`);
+        console.info(`${m_config.getConfig('network_type')} server is running ${app.protocol} on port ${app.port}`);
         callback(null);
       });
     });

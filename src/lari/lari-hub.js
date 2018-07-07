@@ -27,6 +27,7 @@ init_opts.config_directory_name='.lari';
 init_opts.config_file_name='larinode.json';
 init_opts.node_type_label='hub';
 init_opts.network_type='lari';
+init_opts.default_hub_listen_port=4240;
 
 var X = new HemlockNode(hub_directory, 'hub');
 let context=X.context();
@@ -72,4 +73,4 @@ function CLParams(argv) {
       this.unnamedParameters.push(arg0);
     }
   }
-};
+}

@@ -48,6 +48,9 @@ function HemlockNodeConfig(hemlock_node_directory, options) {
   this.getConfig = function(key) {
     return get_config(key);
   };
+  this.setConfig = function(key,val) {
+    return set_config(key,val);
+  };
   this.setListenPort = function(port) {
     m_listen_port = port;
   };
@@ -207,7 +210,7 @@ function HemlockNodeConfig(hemlock_node_directory, options) {
         questions.push({
           type: 'input',
           name: 'listen_url',
-          message: 'Listen url for this hub (use . for http://localhost:[port]):',
+          message: `Listen url for this ${opts.node_type_label} (use . for http://localhost:[port]):`,
           default: get_config('listen_url') || '.',
           validate: is_valid_url
         });
@@ -224,7 +227,7 @@ function HemlockNodeConfig(hemlock_node_directory, options) {
           type: 'input',
           name: 'listen_port',
           message: 'Listen port for this hub:',
-          default: get_config('listen_port') || 3240,
+          default: get_config('listen_port') || (opts.default_hub_listen_port||3240),
           validate: is_valid_port
         });
         questions.push({
@@ -252,9 +255,15 @@ function HemlockNodeConfig(hemlock_node_directory, options) {
       set_config('owner_email', opts.info.owner_email);
     }
 
+    for (var i in questions) {
+      let qq=questions[i];
+      qq.message=`[${get_config('network_type')}] ${qq.message}`;
+    }
+
     if (opts.auto_use_defaults) {
       for (var i in questions) {
         var qq = questions[i];
+
         if (qq.default) {
           set_config(qq.name, qq.default);
         } else {

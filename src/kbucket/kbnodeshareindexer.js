@@ -10,6 +10,7 @@ const sha1 = require('node-sha1');
 const SteadyFileIterator = require(__dirname + '/steadyfileiterator.js').SteadyFileIterator;
 
 function KBNodeShareIndexer(config) {
+  let that=this;
   this.startIndexing = function() {
     startIndexing();
   };
@@ -23,6 +24,21 @@ function KBNodeShareIndexer(config) {
       return null;
     }
     return m_indexed_files[relpath].prv;
+  };
+  this.waitForPrvForIndexedFile = function(relpath,callback) {
+    function check_it() {
+      let prv=that.getPrvForIndexedFile(relpath);
+      if (prv) {
+        setTimeout(function() {
+          callback(null,prv);
+        },1);
+        return;
+      }
+      setTimeout(function() {
+        check_it();
+      },1000);
+    }
+    check_it();
   };
   this.nodeDataForParent = function() {
     var files_by_sha1 = {};
