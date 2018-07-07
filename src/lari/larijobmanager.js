@@ -2,6 +2,7 @@ exports.LariJobManager = LariJobManager;
 exports.LariProcessorJob = LariProcessorJob;
 
 const async = require('async');
+const sha1 = require('node-sha1');
 
 function LariJobManager() {
   this.addJob = function(J) {
@@ -89,6 +90,9 @@ function LariProcessorJob() {
       callback('Lari directory not set.');
       return;
     }
+
+    let job_signature = compute_job_signature(processor_name, inputs, outputs, parameters);
+
     let exe = 'ml-run-process';
     if (opts.run_mode == 'exec') exe = 'ml-exec-process';
     else if (opts.run_mode == 'run') exe = 'ml-run-process';
@@ -103,7 +107,7 @@ function LariProcessorJob() {
       if (val instanceof Array) {
         for (let jj = 0; jj < val.length; jj++) {
           let val0 = val[jj];
-          val0 = input_to_string(val0, key + '_' + jj);
+          val0 = input_to_string(val0, key + '_' + jj, job_signature);
           if (!val0) {
             callback(`Invalid input: ${key}[${jj}$]`);
             return;
@@ -111,7 +115,7 @@ function LariProcessorJob() {
           args.push(key + ':' + val0);
         }
       } else {
-        let val_str = input_to_string(val, key);
+        let val_str = input_to_string(val, key, job_signature);
         if (!val_str) {
           console.error(`Invalid input ${key} `, val);
           callback(`Invalid input: ${key}`);
@@ -142,7 +146,7 @@ function LariProcessorJob() {
     let rel_local_output_files = {};
     for (let key in outputs) {
       if (outputs[key]) {
-        let rel_local_fname = rel_outputs_dir + '/' + m_job_id + '_' + key;
+        let rel_local_fname = rel_outputs_dir + '/' + job_signature + '_' + key;
         args.push(key + ':' + m_lari_directory + '/' + rel_local_fname);
         rel_local_output_files[key] = rel_local_fname;
       }
@@ -184,7 +188,7 @@ function LariProcessorJob() {
           m_is_complete = true;
           return;
         }
-        console_msg('Waiting for prv object for output: '+key);
+        console_msg('Waiting for prv object for output: ' + key);
         m_share_indexer.waitForPrvForIndexedFile(rel_local_fname, function(err, prv) {
           if (err) {
             m_result = {
@@ -221,7 +225,17 @@ function LariProcessorJob() {
     callback(null);
   }
 
-  function input_to_string(X, key) {
+  function compute_job_signature(processor_name, inputs, outputs, parameters) {
+    let obj = {
+      processor_name: processor_name,
+      inputs: inputs,
+      outputs: outputs,
+      parameters: parameters
+    };
+    return sha1(JSON.stringify(obj)).slice(0, 6);
+  }
+
+  function input_to_string(X, key, job_signature) {
     if (typeof(X) == 'string') {
       if ((X.startsWith('kbucket://')) || (X.startsWith('sha1://'))) {
         return X;
@@ -233,7 +247,7 @@ function LariProcessorJob() {
       }
       let inputs_dir = m_lari_directory + '/inputs';
       mkdir_if_needed(inputs_dir);
-      let local_fname = inputs_dir + '/' + m_job_id + '_' + key + '.prv';
+      let local_fname = inputs_dir + '/' + job_signature + '_' + key + '.prv';
       if (!lari_write_text_file(local_fname, JSON.stringify(X, null, 4))) {
         return null;
       }
