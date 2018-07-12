@@ -9,6 +9,7 @@ const KBHttpServer = require(__dirname + '/../kbucket/kbhttpserver.js').KBHttpSe
 const KBNodeApi = require(__dirname + '/../kbucket/kbnodeapi.js').KBNodeApi;
 const KBNodeShareIndexer = require(__dirname + '/../kbucket/kbnodeshareindexer.js').KBNodeShareIndexer;
 const HemlockNodeConfig = require(__dirname + '/../hemlock/hemlocknodeconfig.js').HemlockNodeConfig;
+const copyFileSync = require('fs-copy-file-sync')
 
 var CLP = new CLParams(process.argv);
 
@@ -96,8 +97,8 @@ function copy_config_from_lari_to_kbucket(callback) {
     }
   }
 
-  fs.copyFileSync(node_directory+'/.lari/private.pem',node_directory+'/.kbucket/private.pem');
-  fs.copyFileSync(node_directory+'/.lari/public.pem',node_directory+'/.kbucket/public.pem');
+  copyFileSync(node_directory+'/.lari/private.pem',node_directory+'/.kbucket/private.pem');
+  copyFileSync(node_directory+'/.lari/public.pem',node_directory+'/.kbucket/public.pem');
   callback();
 }
 

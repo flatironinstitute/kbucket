@@ -26,6 +26,7 @@
     "email-validator": "^2.0.4",
     "express": "^4.16.3",
     "find-port": "^2.0.1",
+    "fs-copy-file-sync": "^1.1.1",
     "inquirer": "^6.0.0",
     "jsondiffpatch": "^0.3.10",
     "keypair": "^1.0.1",
