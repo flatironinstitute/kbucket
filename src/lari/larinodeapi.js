@@ -85,7 +85,7 @@ function LariNodeApi(context) {
     let JJ = new LariProcessorJob();
     JJ.setLariDirectory(m_context.config.hemlockNodeDirectory());
     if (!m_context.share_indexer) {
-      console.error('share_indexer not set (in handle_run_process');
+      console.error('share_indexer not set (in handle_run_process)');
       send_500(res,'share_indexer not set.');
     }
     JJ.setShareIndexer(m_context.share_indexer);
