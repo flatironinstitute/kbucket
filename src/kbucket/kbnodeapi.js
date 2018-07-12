@@ -269,7 +269,7 @@ function KBNodeApi(context) {
 
     let prv0 = m_context.share_indexer.getPrvForIndexedFile(filename);
     if (!prv0) {
-      send_500(res, 'File is not yet indexed or does not exist.');
+      send_500(res, 'File is not yet indexed or does not exist: '+filename);
       return;
     }
     res.json(prv0);

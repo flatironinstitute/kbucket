@@ -48,8 +48,8 @@ function HemlockNodeConfig(hemlock_node_directory, options) {
   this.getConfig = function(key) {
     return get_config(key);
   };
-  this.setConfig = function(key,val) {
-    return set_config(key,val);
+  this.setConfig = function(key, val) {
+    return set_config(key, val);
   };
   this.setListenPort = function(port) {
     m_listen_port = port;
@@ -195,7 +195,7 @@ function HemlockNodeConfig(hemlock_node_directory, options) {
         default: get_config('owner_email') || user_settings.get('default_owner_email') || '',
         validate: is_valid_email
       });
-      let default_parent_hub_url = 'https://kbucket.flatironinstitute.org';
+      let default_parent_hub_url = process.env.KBUCKET_URL || 'https://kbucket.flatironinstitute.org';
       if (get_config('network_type') == 'lari')
         default_parent_hub_url = 'https://larihub.org';
       if (m_node_type == 'leaf') {
@@ -227,7 +227,7 @@ function HemlockNodeConfig(hemlock_node_directory, options) {
           type: 'input',
           name: 'listen_port',
           message: 'Listen port for this hub:',
-          default: get_config('listen_port') || (opts.default_hub_listen_port||3240),
+          default: get_config('listen_port') || (opts.default_hub_listen_port || 3240),
           validate: is_valid_port
         });
         questions.push({
@@ -256,8 +256,8 @@ function HemlockNodeConfig(hemlock_node_directory, options) {
     }
 
     for (var i in questions) {
-      let qq=questions[i];
-      qq.message=`[${get_config('network_type')}] ${qq.message}`;
+      let qq = questions[i];
+      qq.message = `[${get_config('network_type')}] ${qq.message}`;
     }
 
     if (opts.auto_use_defaults) {

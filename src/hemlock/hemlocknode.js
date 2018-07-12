@@ -42,7 +42,7 @@ function HemlockNode(hemlock_node_directory, node_type) {
   let m_last_node_data_reported = null;
   var m_http_server = null;
   m_context.connection_to_parent_hub = null;
-  var m_root_url = 'https://kbucket.flatironinstitute.org';
+  var m_root_url = process.env.KBUCKET_URL||'https://kbucket.flatironinstitute.org';
   let m_config_directory_name = '';
   let m_config_file_name = '';
   let m_config = null;

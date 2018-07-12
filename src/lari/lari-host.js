@@ -23,6 +23,8 @@ if (!fs.statSync(node_directory).isDirectory()) {
   process.exit(-1);
 }
 
+process.env.ML_TEMPORARY_DIRECTORY=node_directory+'/tmp';
+
 let lari_context=null;
 
 initialize_lari(function() {
