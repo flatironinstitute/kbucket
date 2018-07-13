@@ -6,6 +6,7 @@ const findPort = require('find-port');
 const fs = require('fs');
 const axios = require('axios');
 const jsondiffpatch = require('jsondiffpatch');
+const object_hash = require('object-hash');
 //const REQUEST = require('request');
 
 const HemlockNodeConfig = require(__dirname + '/hemlocknodeconfig.js').HemlockNodeConfig;
@@ -447,6 +448,7 @@ function HemlockNode(hemlock_node_directory, node_type) {
     } else {
       msg.data = node_data;
     }
+    msg.data_hash=object_hash(node_data);
     m_last_node_data_reported = node_data;
     m_context.connection_to_parent_hub.sendMessage(msg);
     finalize(5000);

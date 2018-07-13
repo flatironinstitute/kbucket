@@ -3,6 +3,7 @@ exports.HemlockConnectionToChildNode = HemlockConnectionToChildNode;
 const crypto = require('crypto');
 const sha1 = require('node-sha1');
 const jsondiffpatch = require('jsondiffpatch');
+const object_hash = require('object-hash');
 
 function HemlockConnectionToChildNode(config) {
   this.setWebSocket = function(polite_web_socket) {
@@ -170,6 +171,11 @@ function HemlockConnectionToChildNode(config) {
           return;
         }
         m_child_node_data = jsondiffpatch.patch(m_child_node_data,X.data_delta);
+        let hash=object_hash(m_child_node_data);
+        if (hash!=X.data_hash) {
+          report_error_and_close_socket('Unexpected: node data hash does not match.');
+          return;
+        }
         m_child_node_socket.sendMessage({
           message:'ok'
         });
