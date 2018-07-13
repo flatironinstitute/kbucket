@@ -217,9 +217,15 @@ function HemlockNodeConfig(hemlock_node_directory, options) {
         questions.push({
           type: 'input',
           name: 'parent_hub_url',
-          message: 'Connect to hub:',
+          message: 'Parent hub url:',
           default: get_config('parent_hub_url') || default_parent_hub_url,
           validate: is_valid_url
+        });
+        questions.push({
+          type: 'input',
+          name: 'parent_hub_passcode',
+          message: 'Parent hub passcode:',
+          default: get_config('parent_hub_passcode') || ''
         });
       }
       if (m_node_type == 'hub') {
@@ -229,6 +235,12 @@ function HemlockNodeConfig(hemlock_node_directory, options) {
           message: 'Listen port for this hub:',
           default: get_config('listen_port') || (opts.default_hub_listen_port || 3240),
           validate: is_valid_port
+        });
+        questions.push({
+          type: 'input',
+          name: 'passcode',
+          message: 'Passcode for this hub:',
+          default: get_config('passcode') || ''
         });
         questions.push({
           type: 'input',
@@ -243,6 +255,12 @@ function HemlockNodeConfig(hemlock_node_directory, options) {
           message: 'Parent hub url (use . for none):',
           default: get_config('parent_hub_url') || default_parent_hub_url,
           validate: is_valid_url
+        });
+        questions.push({
+          type: 'input',
+          name: 'parent_hub_passcode',
+          message: 'Parent hub passcode:',
+          default: get_config('parent_hub_passcode') || ''
         });
       }
     } else {

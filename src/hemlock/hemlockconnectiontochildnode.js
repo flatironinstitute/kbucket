@@ -132,6 +132,11 @@ function HemlockConnectionToChildNode(config) {
     }
 
     if (X.command == 'register_child_node') {
+      if ((X.passcode||'') != (config.getConfig('passcode')||'')) {
+        report_error_and_close_socket('Incorrect passcode.');
+        return;  
+      }
+
       if (!X.info) {
         report_error_and_close_socket('No info field found in message');
         return;

@@ -98,7 +98,8 @@ function HemlockConnectionToParentHub(config) {
     }
     sendMessage({
       command: command,
-      info: info
+      info: info,
+      passcode: config.getConfig('parent_hub_passcode')||''
     });
     callback();
   }
