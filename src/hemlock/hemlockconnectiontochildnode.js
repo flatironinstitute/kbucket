@@ -139,7 +139,7 @@ function HemlockConnectionToChildNode(config) {
       }
 
       if ((X.passcode||'') != (config.getConfig('passcode')||'')) {
-        report_error_and_close_socket(`Incorrect passcode for node ${X.name}`);
+        report_error_and_close_socket(`Incorrect passcode for node ${X.info.name}`);
         return;  
       }
 
