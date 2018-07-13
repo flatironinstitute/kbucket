@@ -217,7 +217,7 @@ function HemlockNodeConfig(hemlock_node_directory, options) {
         if (get_config('network_type') == 'lari') {
           questions.push({
             type: 'input',
-            name: 'passcode',
+            name: 'processing_passcode',
             message: 'Passcode for this lari resource:',
             default: get_config('passcode') || ''
           });

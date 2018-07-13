@@ -216,7 +216,7 @@ function LariNodeApi(context) {
   }
 
   function check_passcode(obj) {
-    return ((obj.passcode||'')==(m_context.config.getConfig('passcode')||''));
+    return ((obj.passcode||'')==(m_context.config.getConfig('processing_passcode')||''));
   }
 }
 
