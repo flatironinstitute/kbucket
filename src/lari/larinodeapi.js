@@ -98,7 +98,11 @@ function LariNodeApi(context) {
     let inputs = obj.inputs || {};
     let outputs = obj.outputs || {};
     let parameters = obj.parameters || {};
-    let processor_opts = obj.opts || {};
+    // important: do not pass through the opts here. select which ones are allowed to go through
+    // for example processor_command_prefix would be a big security problem.
+    let processor_opts = {};
+    if (m_context.config.getConfig('processor_command_prefix'))
+      processor_opts.processor_command_prefix = m_context.config.getConfig('processor_command_prefix');
     if (!processor_name) {
       res.json({
         success: false,
