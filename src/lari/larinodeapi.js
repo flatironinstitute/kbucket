@@ -20,6 +20,7 @@ function LariNodeApi(context) {
   this.handle_run_process = handle_run_process;
   this.handle_probe_process = handle_probe_process;
   this.handle_cancel_process = handle_cancel_process;
+  this.handle_processor_spec = handle_processor_spec;
 
   let m_context = context;
 
@@ -84,14 +85,14 @@ function LariNodeApi(context) {
 
     if (!check_passcode(obj)) {
       send_500(res, 'Incorrect passcode.');
-      return;  
+      return;
     }
 
     let JJ = new LariProcessorJob();
     JJ.setLariDirectory(m_context.config.hemlockNodeDirectory());
     if (!m_context.share_indexer) {
       console.error('share_indexer not set (in handle_run_process)');
-      send_500(res,'share_indexer not set.');
+      send_500(res, 'share_indexer not set.');
     }
     JJ.setShareIndexer(m_context.share_indexer);
     let processor_name = obj.processor_name;
@@ -144,7 +145,7 @@ function LariNodeApi(context) {
 
     if (!check_passcode(obj)) {
       send_500(res, 'Incorrect passcode.');
-      return;  
+      return;
     }
 
     let job_id = obj.job_id;
@@ -187,7 +188,7 @@ function LariNodeApi(context) {
 
     if (!check_passcode(obj)) {
       send_500(res, 'Incorrect passcode.');
-      return;  
+      return;
     }
 
     let job_id = obj.job_id;
@@ -203,7 +204,47 @@ function LariNodeApi(context) {
     }
 
     JJ.cancel();
-    res.json({info:'canceled job.'});
+    res.json({
+      info: 'canceled job.'
+    });
+  }
+
+  function handle_processor_spec(leaf_node_id, req, res) {
+    let obj = req.body || {};
+    if (typeof(obj) != 'object') {
+      send_500(res, 'Unexpected request body type.');
+      return;
+    }
+    m_context.config.incrementMetric('num_requests_processor_spec');
+    if (m_context.config.hemlockNodeId() != leaf_node_id) {
+      route_http_request_to_node(leaf_node_id, `${leaf_node_id}/api/processor_spec`, req, res);
+      return;
+    }
+    if (m_context.config.hemlockNodeType() != 'leaf') {
+      send_500(res, 'Cannot processor_spec on node of type: ' + m_context.config.hemlockNodeType());
+      return;
+    }
+
+    if (!check_passcode(obj)) {
+      send_500(res, 'Incorrect passcode.');
+      return;
+    }
+
+    let processor_name = obj.processor_name;
+    if (!processor_name) {
+      send_500(res, 'processor_name is empty');
+      return;
+    }
+
+    let spec = JobManager.processorSpec(processor_name);
+    if (!spec) {
+      send_500(res, 'Unable to get spec for processor: ' + processor_name);
+      return;
+    }
+
+    res.json({
+      spec: spec
+    });
   }
 
   function route_http_request_to_node(node_id, path, req, res) {
@@ -220,8 +261,8 @@ function LariNodeApi(context) {
   }
 
   function check_passcode(obj) {
-    let opts=obj.opts||{};
-    return ((opts.lari_passcode||'')==(m_context.config.getConfig('processing_passcode')||''));
+    let opts = obj.opts || {};
+    return ((opts.lari_passcode || '') == (m_context.config.getConfig('processing_passcode') || ''));
   }
 }
 

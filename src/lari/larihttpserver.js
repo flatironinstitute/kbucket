@@ -33,5 +33,9 @@ function LariHttpServer(API) {
     var params = req.params;
     API.handle_cancel_process(params.leaf_node_id, req, res);
   });
+  m_app.post('/:leaf_node_id/api/processor_spec', function(req, res) {
+    var params = req.params;
+    API.handle_processor_spec(params.leaf_node_id, req, res);
+  });
 }
 
