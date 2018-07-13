@@ -152,6 +152,10 @@ function LariProcessorJob() {
       }
     }
 
+    if ('processor_command_prefix' in opts) {
+      args.push(`--processor_command_prefix="${opts.processor_command_prefix}"`);
+    }
+
     // Start housekeeping
     setTimeout(housekeeping, 1000);
 
