@@ -236,14 +236,14 @@ function LariNodeApi(context) {
       return;
     }
 
-    let spec = JobManager.processorSpec(processor_name);
-    if (!spec) {
-      send_500(res, 'Unable to get spec for processor: ' + processor_name);
-      return;
-    }
-
-    res.json({
-      spec: spec
+    JobManager.getProcessorSpec(processor_name,function(err,spec) {
+      if (err) {
+        send_500(res, 'Unable to get spec for processor ' + processor_name+': '+err);
+        return;  
+      }
+      res.json({
+        spec: spec
+      });  
     });
   }
 

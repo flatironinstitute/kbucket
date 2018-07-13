@@ -219,7 +219,8 @@ function HemlockNodeConfig(hemlock_node_directory, options) {
             type: 'input',
             name: 'processing_passcode',
             message: 'Passcode for this lari resource:',
-            default: get_config('processing_passcode') || ''
+            default: get_config('processing_passcode') || '',
+            optional: true
           });
         }
         questions.push({

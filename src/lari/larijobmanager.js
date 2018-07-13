@@ -18,6 +18,33 @@ function LariJobManager() {
   this.removeJob = function(job_id) {
     removeJob(job_id);
   };
+  this.getProcessorSpec = function(processor_name, callback) {
+    let exe='ml-spec';
+    let args=[processor_name];
+    execute_and_read_output(exe, args, {
+      on_stdout: function() {},
+      on_stderr: function() {}
+    }, function(err, stdout, stderr, exit_code) {
+      stdout=stdout.trim();
+      if (exit_code) {
+        callback('Non-zero exit code: '+exit_code);
+        return;
+      }
+      if (!stdout) {
+        callback('Empty output.');
+        return;
+      }
+      let spec;
+      try {
+        spec=JSON.parse(stdout);
+      }
+      catch(err) {
+        callback('Error parsing output of ml-spec.');
+        return;
+      }
+      callback(null,spec);
+    });
+  };
 
   let m_jobs = {};
 
