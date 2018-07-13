@@ -214,6 +214,14 @@ function HemlockNodeConfig(hemlock_node_directory, options) {
           default: get_config('listen_url') || '.',
           validate: is_valid_url
         });
+        if (get_config('network_type') == 'lari') {
+          questions.push({
+            type: 'input',
+            name: 'passcode',
+            message: 'Passcode for this lari resource:',
+            default: get_config('passcode') || ''
+          });
+        }
         questions.push({
           type: 'input',
           name: 'parent_hub_url',

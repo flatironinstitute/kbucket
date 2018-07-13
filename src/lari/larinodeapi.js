@@ -82,6 +82,11 @@ function LariNodeApi(context) {
       return;
     }
 
+    if (!check_passcode(obj)) {
+      send_500(res, 'Incorrect passcode.');
+      return;  
+    }
+
     let JJ = new LariProcessorJob();
     JJ.setLariDirectory(m_context.config.hemlockNodeDirectory());
     if (!m_context.share_indexer) {
@@ -133,6 +138,11 @@ function LariNodeApi(context) {
       return;
     }
 
+    if (!check_passcode(obj)) {
+      send_500(res, 'Incorrect passcode.');
+      return;  
+    }
+
     let job_id = obj.job_id;
     if (!job_id) {
       send_500(res, 'job_id is empty');
@@ -171,6 +181,11 @@ function LariNodeApi(context) {
       return;
     }
 
+    if (!check_passcode(obj)) {
+      send_500(res, 'Incorrect passcode.');
+      return;  
+    }
+
     let job_id = obj.job_id;
     if (!job_id) {
       send_500(res, 'job_id is empty');
@@ -198,6 +213,10 @@ function LariNodeApi(context) {
       return;
     }
     m_context.hub_manager.routeHttpRequestToNode(node_id, path, req, res);
+  }
+
+  function check_passcode(obj) {
+    return ((obj.passcode||'')==(m_context.config.getConfig('passcode')||''));
   }
 }
 

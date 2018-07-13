@@ -25,6 +25,13 @@ if (!fs.statSync(node_directory).isDirectory()) {
 }
 
 process.env.ML_TEMPORARY_DIRECTORY=node_directory+'/.tmp';
+process.env.ML_CONFIG_DIRECTORY=node_directory+'/.mountainlab';
+if (!fs.existsSync(process.env.ML_CONFIG_DIRECTORY)) {
+  fs.mkdirSync(process.env.ML_CONFIG_DIRECTORY);
+}
+if (!fs.existsSync(process.env.ML_CONFIG_DIRECTORY+'/packages')) {
+  fs.mkdirSync(process.env.ML_CONFIG_DIRECTORY+'/packages');
+}
 
 let lari_context=null;
 
