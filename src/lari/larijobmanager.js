@@ -153,7 +153,9 @@ function LariProcessorJob() {
     }
 
     if ('processor_command_prefix' in opts) {
-      args.push(`--processor_command_prefix="${opts.processor_command_prefix}"`);
+      // note that the double quotes caused a weird problem. will need to address in the future when we need command prefixes with spaces
+      // args.push(`--processor_command_prefix="${opts.processor_command_prefix}"`);
+      args.push(`--processor_command_prefix=${opts.processor_command_prefix}`);
     }
 
     // Start housekeeping
