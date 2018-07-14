@@ -234,7 +234,8 @@ function HemlockNodeConfig(hemlock_node_directory, options) {
           type: 'input',
           name: 'parent_hub_passcode',
           message: 'Parent hub passcode:',
-          default: get_config('parent_hub_passcode') || ''
+          default: get_config('parent_hub_passcode') || '',
+          optional: true
         });
       }
       if (m_node_type == 'hub') {
@@ -269,7 +270,8 @@ function HemlockNodeConfig(hemlock_node_directory, options) {
           type: 'input',
           name: 'parent_hub_passcode',
           message: 'Parent hub passcode:',
-          default: get_config('parent_hub_passcode') || ''
+          default: get_config('parent_hub_passcode') || '',
+          optional: true
         });
       }
     } else {
