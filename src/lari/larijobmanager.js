@@ -4,6 +4,8 @@ exports.LariProcessorJob = LariProcessorJob;
 const async = require('async');
 const sha1 = require('node-sha1');
 
+const ml_command_prefix = `${__dirname}/../../node_modules/mountainlab/bin`;
+
 function LariJobManager() {
   this.addJob = function(J) {
     if (J.jobId() in m_jobs) {
@@ -19,31 +21,31 @@ function LariJobManager() {
     removeJob(job_id);
   };
   this.getProcessorSpec = function(processor_name, callback) {
-    let exe='ml-spec';
-    let args=[processor_name];
+    let exe = 'ml-spec';
+    exe = `${ml_command_prefix}/${exe}`;
+    let args = [processor_name];
     execute_and_read_output(exe, args, {
       on_stdout: function() {},
       on_stderr: function() {}
     }, function(err, stdout, stderr, exit_code) {
-      stdout=stdout.trim();
+      stdout = stdout.trim();
       if (exit_code) {
-        callback('Non-zero exit code: '+exit_code);
+        callback('Non-zero exit code: ' + exit_code);
         return;
       }
       if (!stdout) {
         console.error(stderr);
-        callback('Empty output for command: '+exe+' '+args.join(' '));
+        callback('Empty output for command: ' + exe + ' ' + args.join(' '));
         return;
       }
       let spec;
       try {
-        spec=JSON.parse(stdout);
-      }
-      catch(err) {
+        spec = JSON.parse(stdout);
+      } catch (err) {
         callback('Error parsing output of ml-spec.');
         return;
       }
-      callback(null,spec);
+      callback(null, spec);
     });
   };
 
@@ -125,6 +127,9 @@ function LariProcessorJob() {
     if (opts.mode == 'exec') exe = 'ml-exec-process';
     else if (opts.mode == 'run') exe = 'ml-run-process';
     else if (opts.mode == 'queue') exe = 'ml-queue-process';
+
+    exe = `${ml_command_prefix}/${exe}`;
+
     let args = [];
     args.push(processor_name);
 
