@@ -1,0 +1,15 @@
+language: node_js
+os:
+- linux
+node_js:
+- node
+install:
+- npm install
+deploy:
+  provider: npm
+  email: jmagland@flatironinstitute.org
+  api_key:
+    secure: pLo5a+ra0itSm2N1+SOAmt3m3pnpi55VsX3WXTKb7TGVjClTy0aDRh70QnkQ1Yu8yzVPx/wcBBbxKmHGgXCHlXKp+GSZtbwjOvbddayC4lqmelkDaIQA6A6BEGwMqvWDNmc6avilRHVfNZ4R7Oxj7CxeUnA+IJ7dlvDnsCouQyJB6zSXLLAZ2u4dFhRM5b1cPEODb5G38dJqAdU871ZpvVGtI4Dh8xSUPFH3L2YgvTDQ/2f417P9F1NtlzGDd7O08bfoWd0amkIWCigwvsw9fbG8rw9sA/cgvM9VupNWq8+neqDmkq1CFFZyxgw3W1Syza+u6AV6FoFcQuSKdGkCdFzM49wjE/SO8ep754phmzIvhY35bTAb4iBQL+2b4Wuw5n7cBt1e/wzJwIoEzVqBATru+RjwoYkL7f/jHignerZkyVprxASP7r9N06TLw6WMWmwsBTMxDCXemCsCqHMQmJH65VdvNjffDziY6IWTMhp2Ujchp9e0VT4cLk2gMJSYC5IT2Zzuv3jz/VNm+9gQy537byRyn18uzZysQ3UeyMySy16TzFIkT6Gf9P9OOJ4ezP+5MZdIFIVQbQZ5PnPitnRwst2tKFUHlRYWb7FKrucWGffGwkBEhTewGEPkx4cQFJWjf4V3Zr8FD78NSd5aengGoOfBIndFfer9KcrGhrw=
+  on:
+    tags: true
+    repo: flatironinstitute/kbucket
