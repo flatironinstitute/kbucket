@@ -15,7 +15,7 @@ process.on('SIGINT', cleanExit); // catch ctrl-c
 process.on('SIGTERM', cleanExit); // catch kill
 function stop_child_processes() {
   if (all_child_processes.length > 0) {
-    console.log(`killing ${all_child_processes.length} child processes`);
+    console.info(`killing ${all_child_processes.length} child processes`);
     all_child_processes.forEach(function(child) {
       try {
         child.kill();
@@ -41,7 +41,7 @@ function start_test_nodes(callback) {
           if (callback) {
             callback(test_nodes_info);
           }
-        }, 1000);
+        }, 4000);
       }, 1000);
     }, 1000);
   }, 1000);

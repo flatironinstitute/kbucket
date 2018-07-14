@@ -31,7 +31,8 @@ function LariJobManager() {
         return;
       }
       if (!stdout) {
-        callback('Empty output.');
+        console.error(stderr);
+        callback('Empty output for command: '+exe+' '+args.join(' '));
         return;
       }
       let spec;
@@ -121,9 +122,9 @@ function LariProcessorJob() {
     let job_signature = compute_job_signature(processor_name, inputs, outputs, parameters);
 
     let exe = 'ml-run-process';
-    if (opts.run_mode == 'exec') exe = 'ml-exec-process';
-    else if (opts.run_mode == 'run') exe = 'ml-run-process';
-    else if (opts.run_mode == 'queue') exe = 'ml-queue-process';
+    if (opts.mode == 'exec') exe = 'ml-exec-process';
+    else if (opts.mode == 'run') exe = 'ml-run-process';
+    else if (opts.mode == 'queue') exe = 'ml-queue-process';
     let args = [];
     args.push(processor_name);
 
@@ -183,6 +184,10 @@ function LariProcessorJob() {
       // note that the double quotes caused a weird problem. will need to address in the future when we need command prefixes with spaces
       // args.push(`--processor_command_prefix="${opts.processor_command_prefix}"`);
       args.push(`--processor_command_prefix=${opts.processor_command_prefix}`);
+    }
+
+    if (opts.force_run) {
+      args.push('--force_run');
     }
 
     // Start housekeeping

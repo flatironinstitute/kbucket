@@ -73,6 +73,7 @@ function LariNodeApi(context) {
       send_500(res, 'Unexpected request body type.');
       return;
     }
+    obj.opts = obj.opts || {};
     m_context.config.incrementMetric('num_requests_run_process');
     if (m_context.config.hemlockNodeId() != leaf_node_id) {
       route_http_request_to_node(leaf_node_id, `${leaf_node_id}/api/run_process`, req, res);
@@ -93,6 +94,7 @@ function LariNodeApi(context) {
     if (!m_context.share_indexer) {
       console.error('share_indexer not set (in handle_run_process)');
       send_500(res, 'share_indexer not set.');
+      return;
     }
     JJ.setShareIndexer(m_context.share_indexer);
     let processor_name = obj.processor_name;
@@ -104,6 +106,9 @@ function LariNodeApi(context) {
     let processor_opts = {};
     if (m_context.config.getConfig('processor_command_prefix'))
       processor_opts.processor_command_prefix = m_context.config.getConfig('processor_command_prefix');
+    processor_opts.mode = obj.opts.mode || 'run';
+    if (obj.opts.force_run)
+      processor_opts.force_run = true;
     if (!processor_name) {
       res.json({
         success: false,
@@ -176,6 +181,7 @@ function LariNodeApi(context) {
       send_500(res, 'Unexpected request body type.');
       return;
     }
+    obj.opts = obj.opts || {};
     m_context.config.incrementMetric('num_requests_cancel_process');
     if (m_context.config.hemlockNodeId() != leaf_node_id) {
       route_http_request_to_node(leaf_node_id, `${leaf_node_id}/api/cancel_process`, req, res);
@@ -236,14 +242,14 @@ function LariNodeApi(context) {
       return;
     }
 
-    JobManager.getProcessorSpec(processor_name,function(err,spec) {
+    JobManager.getProcessorSpec(processor_name, function(err, spec) {
       if (err) {
-        send_500(res, 'Unable to get spec for processor ' + processor_name+': '+err);
-        return;  
+        send_500(res, 'Unable to get spec for processor ' + processor_name + ': ' + err);
+        return;
       }
       res.json({
         spec: spec
-      });  
+      });
     });
   }
 
