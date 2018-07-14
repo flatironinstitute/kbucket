@@ -1,5 +1,5 @@
 {
-  "name": "kbucket",
+  "name": "@magland/kbucket",
   "version": "0.6.3",
   "description": "Share data for scientific research",
   "main": "index.js",
