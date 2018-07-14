@@ -4,7 +4,17 @@ exports.LariProcessorJob = LariProcessorJob;
 const async = require('async');
 const sha1 = require('node-sha1');
 
-const ml_command_prefix = `${__dirname}/../../node_modules/mountainlab/bin`;
+console.info('Checking for bundled mountainlab installation.');
+let node_modules_dir=find_node_modules_dir_at(`${__dirname}/../..`);
+if (!node_modules_dir) {
+  console.error('Unable to find node modules dir.');
+  process.exit(-1);
+}
+const ml_command_prefix = `${node_modules_dir}/mountainlab/bin`;
+if (!require('fs').existsSync(ml_command_prefix+'/ml-run-process')) {
+  console.error('File does not exist: '+ml_command_prefix+'/ml-run-process');
+  process.exit(-1);  
+}
 
 function LariJobManager() {
   this.addJob = function(J) {
@@ -468,4 +478,12 @@ function mkdir_if_needed(path) {
   try {
     require('fs').mkdirSync(path);
   } catch (err) {}
+}
+
+function find_node_modules_dir_at(path) {
+  if (path.length<=1) return null;
+  if (require('fs').existsSync(path+'/node_modules'))
+    return path+'/node_modules';
+  let parent_path=require('path').dirname(path);
+  return find_node_modules_dir_at(parent_path);
 }
