@@ -2,3 +2,4 @@ node_modules
 .kbucket
 logs
 metrics.json
+kbucketgui/package-lock.json
