@@ -1,6 +1,6 @@
 {
   "name": "@magland/kbucket",
-  "version": "0.8.4",
+  "version": "0.9.0",
   "description": "Share data for scientific research",
   "main": "index.js",
   "scripts": {
