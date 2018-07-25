@@ -101,6 +101,7 @@ function LariProcessorJob() {
     cancel(callback);
   };
   this.isComplete = function() {
+    write_status_file();
     return m_is_complete;
   };
   this.result = function() {
@@ -124,6 +125,9 @@ function LariProcessorJob() {
   let m_job_id = make_random_id(10); //internal for now (just for naming the temporary files)
   let m_lari_directory = '';
   let m_share_indexer = null;
+  let m_status_file = '';
+  let m_console_file = '';
+  let m_status_object = {};
 
   function start(processor_name, inputs, outputs, parameters, opts, callback) {
     if (!m_lari_directory) {
@@ -131,6 +135,10 @@ function LariProcessorJob() {
       return;
     }
 
+    m_status_object.processor_name=processor_name;
+    m_status_object.inputs=JSON.parse(JSON.stringify(inputs));
+    m_status_object.outputs=JSON.parse(JSON.stringify(outputs));
+    m_status_object.parameters=JSON.parse(JSON.stringify(parameters));
     let job_signature = compute_job_signature(processor_name, inputs, outputs, parameters);
 
     let exe = 'ml-run-process';
@@ -184,6 +192,10 @@ function LariProcessorJob() {
     let rel_outputs_dir = 'outputs';
     mkdir_if_needed(m_lari_directory + '/' + rel_outputs_dir);
 
+    mkdir_if_needed(m_lari_directory + '/jobs');
+    m_status_file=m_lari_directory+'/jobs/'+m_job_id+'.json';
+    m_console_file=m_lari_directory+'/jobs/'+m_job_id+'.console.out';
+
     // Handle outputs
     args.push('--outputs');
     let rel_local_output_files = {};
@@ -209,6 +221,7 @@ function LariProcessorJob() {
     setTimeout(housekeeping, 1000);
 
     // Start process
+    m_status_object.exe = exe+' '+args.join(' ');
     m_process_object = execute_and_read_output(exe, args, {
       on_stdout: on_stdout,
       on_stderr: on_stderr
@@ -244,6 +257,7 @@ function LariProcessorJob() {
         console_msg('Waiting for prv object for output: ' + key);
         m_share_indexer.waitForPrvForIndexedFile(rel_local_fname, function(err, prv) {
           if (err) {
+            console.error(err);
             m_result = {
               success: false,
               error: `Problem waiting for prv object of output file  ${key}`
@@ -261,22 +275,33 @@ function LariProcessorJob() {
         };
         m_is_complete = true;
       });
-
     });
 
     function console_msg(txt) {
-      m_latest_console_output += txt + '\n';
+      handle_stdout(txt+'\n');
     }
 
     function on_stdout(txt) {
-      m_latest_console_output += txt;
+      handle_stdout(txt);
     }
 
     function on_stderr(txt) {
-      m_latest_console_output += txt;
+      handle_stderr(txt);
     }
     callback(null);
   }
+
+  function handle_stdout(txt) {
+    m_latest_console_output += txt;
+    if (m_console_file)
+      lari_append_text_file(m_console_file,txt);
+  }
+  function handle_stderr(txt) {
+    m_latest_console_output += txt; 
+    if (m_console_file)
+      lari_append_text_file(m_console_file,txt);
+  }
+  
 
   function compute_job_signature(processor_name, inputs, outputs, parameters) {
     let obj = {
@@ -338,6 +363,7 @@ function LariProcessorJob() {
   }
 
   function housekeeping() {
+    write_status_file();
     if (m_is_complete) return;
     let timeout = 60000;
     let elapsed_since_keep_alive = that.elapsedSinceKeepAlive();
@@ -348,6 +374,15 @@ function LariProcessorJob() {
       setTimeout(housekeeping, 1000);
     }
   }
+
+  function write_status_file() {
+    if (!m_status_file) return;
+    if (m_result)
+      m_status_object.result=m_result
+    m_status_object.is_complete=m_is_complete;
+    lari_write_text_file(m_status_file, JSON.stringify(m_status_object, null, 4));
+  }
+
   /*
   function compute_output_file_stats(outputs) {
   	let stats={};
@@ -401,6 +436,20 @@ function lari_write_text_file(fname, txt) {
     return true;
   } catch (e) {
     console.error('Problem writing file: ' + fname);
+    return false;
+  }
+}
+
+function lari_append_text_file(fname, txt) {
+  if (!require('fs').existsSync(fname)) {
+    lari_write_text_file(fname,txt);
+    return;
+  }
+  try {
+    require('fs').appendFileSync(fname, txt, 'utf8');
+    return true;
+  } catch (e) {
+    console.error('Problem appending file: ' + fname);
     return false;
   }
 }
