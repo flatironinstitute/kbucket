@@ -133,6 +133,7 @@ function initialize_kbucket() {
     }
     context.share_indexer = new KBNodeShareIndexer(context.config);
     lari_context.share_indexer=context.share_indexer;
+    lari_context.kbucket_url=context.config.getConfig('parent_hub_url');
     context.share_indexer.startIndexing();
   });
 

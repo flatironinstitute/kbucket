@@ -97,6 +97,11 @@ function LariNodeApi(context) {
       return;
     }
     JJ.setShareIndexer(m_context.share_indexer);
+    if (!m_context.kbucket_url) {
+      console.error('kbucket url not set');
+      process.exit(-1);
+    }
+    JJ.setKBucketUrl(m_context.kbucket_url);
     let processor_name = obj.processor_name;
     let inputs = obj.inputs || {};
     let outputs = obj.outputs || {};
