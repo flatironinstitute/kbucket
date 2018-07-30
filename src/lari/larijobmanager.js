@@ -140,7 +140,7 @@ function LariProcessorJob() {
   let m_process_object = null;
   //let m_output_file_stats={};
   let m_latest_console_output = '';
-  let m_job_id = make_random_id(10); //internal for now (just for naming the temporary files)
+  let m_job_id = make_random_id(10)+'_test';
   let m_lari_directory = '';
   let m_share_indexer = null;
   let m_kbucket_url = '';
