@@ -250,7 +250,8 @@ function HemlockNodeConfig(hemlock_node_directory, options) {
           type: 'input',
           name: 'passcode',
           message: 'Passcode for this hub:',
-          default: get_config('passcode') || ''
+          default: get_config('passcode') || '',
+          optional: true
         });
         questions.push({
           type: 'input',

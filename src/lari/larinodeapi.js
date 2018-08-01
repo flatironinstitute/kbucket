@@ -68,6 +68,7 @@ function LariNodeApi(context) {
   }
 
   function handle_run_process(leaf_node_id, req, res) {
+    console.log('handle_run_process');
     let obj = req.body || {};
     if (typeof(obj) != 'object') {
       send_500(res, 'Unexpected request body type.');
@@ -97,6 +98,11 @@ function LariNodeApi(context) {
       return;
     }
     JJ.setShareIndexer(m_context.share_indexer);
+    if (!m_context.kbucket_url) {
+      console.error('kbucket url not set');
+      process.exit(-1);
+    }
+    JJ.setKBucketUrl(m_context.kbucket_url);
     let processor_name = obj.processor_name;
     let inputs = obj.inputs || {};
     let outputs = obj.outputs || {};
@@ -116,6 +122,7 @@ function LariNodeApi(context) {
       });
       return;
     }
+    console.log('start');
     JJ.start(processor_name, inputs, outputs, parameters, processor_opts, function(err, resp) {
       if (err) {
         res.json({
@@ -125,6 +132,7 @@ function LariNodeApi(context) {
         return;
       }
       JobManager.addJob(JJ);
+      console.log('responding: '+JJ.jobId());
       res.json({
         success: true,
         job_id: JJ.jobId()

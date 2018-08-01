@@ -1,6 +1,6 @@
 {
   "name": "@magland/kbucket",
-  "version": "0.8.5",
+  "version": "0.9.4",
   "description": "Share data for scientific research",
   "main": "index.js",
   "scripts": {
@@ -30,6 +30,7 @@
     "fs-copy-file-sync": "^1.1.1",
     "inquirer": "^6.0.0",
     "jsondiffpatch": "^0.3.10",
+    "kbclient": "latest",
     "keypair": "^1.0.1",
     "mountainlab": "latest",
     "node-sha1": "^1.0.1",

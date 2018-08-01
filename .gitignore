@@ -3,3 +3,4 @@ logs
 metrics.json
 kbucketgui/package-lock.json
 .mountainlab
+package-lock.json

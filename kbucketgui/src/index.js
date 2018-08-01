@@ -1,5 +1,6 @@
-var KBShareBrowser = require(__dirname + '/kbsharebrowser.js').KBShareBrowser;
-var KBHubBrowser = require(__dirname + '/kbhubbrowser.js').KBHubBrowser;
+const KBShareBrowser = require(__dirname + '/kbsharebrowser.js').KBShareBrowser;
+const KBHubBrowser = require(__dirname + '/kbhubbrowser.js').KBHubBrowser;
+const LariJobWidget = require(__dirname + '/larijobwidget.js').LariJobWidget;
 
 var TOP_KBUCKET_HUB_URL = 'https://kbucket.flatironinstitute.org';
 var DEFAULT_HUB_ID = 'a31ff6b646de';
@@ -7,6 +8,15 @@ var DEFAULT_HUB_ID = 'a31ff6b646de';
 $(document).ready(function() {
   var query = parse_url_params();
   window.query = query;
+
+  if (query.lari_job_id) {
+    if (query.lari_job_id=='test') query.lari_job_id='69r69uijzO_test';
+    if (query.lari_id=='test') query.lari_id='133898b2b079';
+
+    view_lari_job(query);
+    return;
+  }
+
   var kbnode_id = query.share || query.hub || query.node_id;
   if (!kbnode_id) {
     query.hub = DEFAULT_HUB_ID;
@@ -47,6 +57,14 @@ $(document).ready(function() {
     });
   });
 });
+
+function view_lari_job(query) {
+  console.log(query);
+  let W=new LariJobWidget();
+  W.setLariId(query.lari_id||'');
+  W.setLariJobId(query.lari_job_id||'');
+  $('#main_window').append(W.element());
+}
 
 function find_lowest_accessible_hub_url(kbnode_id, callback) {
   get_node_info(kbnode_id, function(err, resp, accessible) {

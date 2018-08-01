@@ -23,5 +23,9 @@ module.exports = {
         use: [ 'style-loader', 'css-loader' ]
       }
     ]
+  },
+  externals: {
+    "fs":"require('fs')",
+    "proper-lockfile":"{}"
   }
 };
