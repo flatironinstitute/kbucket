@@ -68,7 +68,6 @@ function LariNodeApi(context) {
   }
 
   function handle_run_process(leaf_node_id, req, res) {
-    console.log('handle_run_process');
     let obj = req.body || {};
     if (typeof(obj) != 'object') {
       send_500(res, 'Unexpected request body type.');
@@ -122,7 +121,6 @@ function LariNodeApi(context) {
       });
       return;
     }
-    console.log('start');
     JJ.start(processor_name, inputs, outputs, parameters, processor_opts, function(err, resp) {
       if (err) {
         res.json({
@@ -132,7 +130,6 @@ function LariNodeApi(context) {
         return;
       }
       JobManager.addJob(JJ);
-      console.log('responding: '+JJ.jobId());
       res.json({
         success: true,
         job_id: JJ.jobId()
