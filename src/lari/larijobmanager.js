@@ -4,6 +4,7 @@ exports.LariProcessorJob = LariProcessorJob;
 const async = require('async');
 const sha1 = require('node-sha1');
 const KBClient = require('kbclient').v1;
+const canonical_json = require('canonical-json');
 
 console.info('Checking for bundled mountainlab installation.');
 let node_modules_dir = find_node_modules_dir_at(`${__dirname}/../..`);
@@ -414,7 +415,7 @@ function LariProcessorJob() {
       outputs: outputs,
       parameters: parameters
     };
-    return sha1(JSON.stringify(obj)).slice(0, 6);
+    return sha1(canonical_json(obj)).slice(0, 10);
   }
 
   function input_to_string(X, key, job_signature) {
