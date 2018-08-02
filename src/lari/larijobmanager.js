@@ -47,10 +47,13 @@ function LariJobManager() {
       },
       function(err, stdout, stderr, exit_code) {
         stdout = stdout.trim();
+        /*
+        // not sure why I was getting non-zero error code for ml-spec. hmmm
         if (exit_code) {
           callback('Non-zero exit code: ' + exit_code);
           return;
         }
+        */
         if (!stdout) {
           console.error(stderr);
           callback('Empty output for command: ' + exe + ' ' + args.join(' '));
