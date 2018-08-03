@@ -178,8 +178,11 @@ function KBNodeShareIndexer(config) {
     }
     const fullpath = require('path').join(config.hemlockNodeDirectory(), relpath);
     console.info(`Computing prv for: ${relpath}`);
-    computePrvObject(fullpath, function(err, obj) {
+    //computePrvObject(fullpath, function(err, obj) {
+    // Note: it's important to do it like the following, because node-sha1 sometimes crashes (if the file disappears) so we want to separate this into a different process
+    run_prv_create(fullpath, function(err,obj) {
       if (err) {
+        console.error('Error computing prv: '+err);
         callback(err);
         return;
       }
@@ -187,6 +190,34 @@ function KBNodeShareIndexer(config) {
       callback(null, obj);
     });
   }
+}
+
+function run_prv_create(path,callback) {
+  run_command_and_read_stdout(__dirname+`/kb-prv-create.js ${path}`,function(err,txt) {
+    if (err) {
+      callback(err);
+      return;
+    }
+    let obj;
+    try {
+      obj=JSON.parse(txt.trim());
+    }
+    catch(err) {
+      callback('Error parsing json output of kb-prv-create.js.');
+      return;
+    }
+    callback(null,obj);
+  });
+}
+
+function run_command_and_read_stdout(cmd, callback) {
+  require('child_process').exec(cmd,function(error, stdout, stderr) { 
+    if (error) {
+      callback(error.message);
+      return;
+    }
+    callback(null,stdout); 
+  });
 }
 
 function stat_file(fname) {
@@ -424,14 +455,26 @@ function compute_file_sha1(path, opts, callback) {
   var opts2 = {};
   if (opts.start_byte) opts2.start = opts.start_byte;
   if (opts.end_byte) opts2.end = opts.end_byte;
-  var stream = require('fs').createReadStream(path, opts2);
-  sha1(stream, function(err, hash) {
-    if (err) {
-      callback('Error: ' + err);
-      return;
-    }
-    callback(null, hash);
-  });
+  try {
+    var stream = require('fs').createReadStream(path, opts2);
+  }
+  catch(err) {
+    callback('Error creating read stream for file: '+path);
+    return;
+  }
+  try {
+    sha1(stream, function(err, hash) {
+      if (err) {
+        console.error(err);
+        callback('Error:---: ' + err);
+        return;
+      }
+      callback(null, hash);
+    });
+  }
+  catch(err) {
+    callback('Error (*): '+err.mesage);
+  }
 }
 
 function include_file_name(name) {
