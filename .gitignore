@@ -4,3 +4,5 @@ metrics.json
 kbucketgui/package-lock.json
 .mountainlab
 package-lock.json
+*sublime-project
+*sublime-workspace
