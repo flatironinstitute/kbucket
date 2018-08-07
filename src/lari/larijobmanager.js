@@ -1,5 +1,6 @@
 exports.LariJobManager = LariJobManager;
 exports.LariProcessorJob = LariProcessorJob;
+exports.list_processors = list_processors;
 
 const async = require('async');
 const sha1 = require('node-sha1');
@@ -18,6 +19,26 @@ if (!require('fs').existsSync(ml_command_prefix + '/ml-run-process')) {
     'File does not exist: ' + ml_command_prefix + '/ml-run-process'
   );
   process.exit(-1);
+}
+
+function list_processors(callback) {
+  let exe = ml_command_prefix + '/ml-list-processors';
+  execute_and_read_output(
+    exe, [], {
+      on_stdout: function() {},
+      on_stderr: function() {},
+      silent:true
+    },
+    function(err, stdout, stderr, exit_code) {
+      if (exit_code) {
+        console.info(exe);
+        console.error(stderr);
+        callback('Non-zero exit code for ml-list-processors: ' + exit_code);
+        return;
+      }
+      callback(null);
+    }
+  );
 }
 
 function LariJobManager() {
@@ -40,8 +61,7 @@ function LariJobManager() {
     let args = [processor_name];
     execute_and_read_output(
       exe,
-      args,
-      {
+      args, {
         on_stdout: function() {},
         on_stderr: function() {}
       },
@@ -250,8 +270,7 @@ function LariProcessorJob() {
     m_status_object.exe = exe + ' ' + args.join(' ');
     m_process_object = execute_and_read_output(
       exe,
-      args,
-      {
+      args, {
         on_stdout: on_stdout,
         on_stderr: on_stderr
       },
@@ -278,11 +297,9 @@ function LariProcessorJob() {
           rel_local_output_file_keys,
           function(key, cb) {
             let rel_local_fname = rel_local_output_files[key];
-            if (
-              !require('fs').existsSync(
+            if (!require('fs').existsSync(
                 m_lari_directory + '/' + rel_local_fname
-              )
-            ) {
+              )) {
               m_result = {
                 success: false,
                 error: `Missing output file ${key}`
@@ -343,8 +360,7 @@ function LariProcessorJob() {
           check_on_kbucket(path, function(found) {
             cb(found);
           });
-        },
-        {
+        }, {
           num_retries: 10,
           timeout: 1000
         },
@@ -356,6 +372,7 @@ function LariProcessorJob() {
           callback(null);
         }
       );
+
       function check_on_kbucket(path, cb) {
         KBC.locateFile(path)
           .then(function(path2) {
@@ -367,6 +384,7 @@ function LariProcessorJob() {
           });
       }
     }
+
     function wait_for_true(func, opts_in, callback) {
       let opts = JSON.parse(JSON.stringify(opts_in));
       func(function(resp) {
@@ -404,6 +422,7 @@ function LariProcessorJob() {
     m_latest_console_output += txt;
     if (m_console_file) lari_append_text_file(m_console_file, txt);
   }
+
   function handle_stderr(txt) {
     m_latest_console_output += txt;
     if (m_console_file) lari_append_text_file(m_console_file, txt);
@@ -562,7 +581,8 @@ function lari_append_text_file(fname, txt) {
 }
 
 function execute_and_read_output(exe, args, opts, callback) {
-  console.info('RUNNING: ' + exe + ' ' + args.join(' '));
+  if (!opts.silent)
+    console.info('RUNNING: ' + exe + ' ' + args.join(' '));
   let P;
   try {
     P = require('child_process').spawn(exe, args);

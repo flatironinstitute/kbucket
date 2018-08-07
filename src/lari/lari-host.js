@@ -10,6 +10,7 @@ const KBNodeApi = require(__dirname + '/../kbucket/kbnodeapi.js').KBNodeApi;
 const KBNodeShareIndexer = require(__dirname + '/../kbucket/kbnodeshareindexer.js').KBNodeShareIndexer;
 const HemlockNodeConfig = require(__dirname + '/../hemlock/hemlocknodeconfig.js').HemlockNodeConfig;
 const copyFileSync = require('fs-copy-file-sync')
+const list_processors=require(__dirname+'/larijobmanager.js').list_processors;
 
 var CLP = new CLParams(process.argv);
 
@@ -68,6 +69,17 @@ function initialize_lari(callback) {
     lari_context=context;
     callback();
   });
+  do_get_spec();
+  function do_get_spec() {
+    list_processors(function(err) {
+      if (err) {
+        console.warn('Problem in list processors: '+err);
+      }
+      setTimeout(function() {
+        do_get_spec();
+      },6000);
+    });
+  }
 }
 
 function copy_config_from_lari_to_kbucket(callback) {
