@@ -44,5 +44,13 @@
   },
   "directories": {
     "bin": "bin"
+  },
+  "conda": {
+    "build_number": 0,
+    "build_script": [
+      "tgzfile=$(npm pack)",
+      "npm install -g $tgzfile"
+    ],
+    "test_commands": []
   }
 }
