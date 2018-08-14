@@ -2,12 +2,11 @@
 {% set npm = load_npm() %}
 {% set build_script = npm.get('conda',{}).get('build_script',[]) %}
 {% set test_commands = npm.get('conda',{}).get('test_commands',[]) %}
-{% set requirements = npm.get('conda',{}).get('requirements',[]) %}
-{% set pkg_name = npm.get('name') %}
+{% set pkg_name = "kbucket" %}
 {% set version = npm.get('version') %}
 {% set build_number = npm.get('conda',{}).get('build_number',0) %}
-{% set repo_url = npm.get('repository').get('url') %}
-{% set license = npm.get('license') %}
+{% set repo_url = npm.get('repository',{}).get('url','') %}
+{% set license = npm.get('license','') %}
 
 package:
   name: {{ pkg_name|lower }}
@@ -25,13 +24,9 @@ build:
 
 requirements:
   host:
-    {% for line in requirements %}
-      - {{ line }}
-    {% endfor %}
+    - nodejs
   run:
-    {% for line in requirements %}
-      - {{ line }}
-    {% endfor %}
+    - nodejs
     - coreutils [ osx ]
 
 test:

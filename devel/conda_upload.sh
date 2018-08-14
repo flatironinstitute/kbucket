@@ -1,6 +1,6 @@
 #!/bin/bash
 
-PACKAGE_NAME=`cat package.json | jq -r '.name'`
+PACKAGE_NAME="kbucket"
 VERSION=`cat package.json | jq -r '.version'`
 BUILD_NUMBER=`cat package.json | jq -r '.conda.build_number'`
 UPLOAD_CHANNEL=`cat devel/conda_upload_config.json | jq -r '.anaconda_upload_channel'`
