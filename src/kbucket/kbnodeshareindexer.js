@@ -121,8 +121,8 @@ function KBNodeShareIndexer(config) {
     async.eachSeries(relpaths, function(relpath, cb) {
       handle_queued_file(relpath, function(err) {
         if (err) {
-          callback(err);
-          return;
+          //callback(err);
+          //return;
         }
         cb();
       });
@@ -182,7 +182,7 @@ function KBNodeShareIndexer(config) {
     // Note: it's important to do it like the following, because node-sha1 sometimes crashes (if the file disappears) so we want to separate this into a different process
     run_prv_create(fullpath, function(err,obj) {
       if (err) {
-        console.error('Error computing prv: '+err);
+        console.error('Error computing prv ***: '+err);
         callback(err);
         return;
       }
