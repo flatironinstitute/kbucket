@@ -320,7 +320,12 @@ function PrvCacheManager(config_dir, node_directory) {
     return get_prv_from_cache(relpath);
   };
   this.savePrvToCache = function(relpath, prv) {
-    save_prv_to_cache(relpath, prv);
+    try {
+      save_prv_to_cache(relpath, prv);
+    }
+    catch(err) {
+      console.warn(`Warning: problem saving prv to cache (relpath=${relpath}): ${err.message}`);
+    }
   };
 
   if (!require('fs').existsSync(config_dir + '/prv_cache')) {
