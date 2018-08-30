@@ -114,6 +114,8 @@ function LariNodeApi(context) {
     processor_opts.mode = obj.opts.mode || 'run';
     if (obj.opts.force_run)
       processor_opts.force_run = true;
+    if (obj.opts.container)
+      processor_opts.container = obj.opts.container;
     if (!processor_name) {
       res.json({
         success: false,
@@ -226,6 +228,7 @@ function LariNodeApi(context) {
       send_500(res, 'Unexpected request body type.');
       return;
     }
+    obj.opts = obj.opts || {};
     m_context.config.incrementMetric('num_requests_processor_spec');
     if (m_context.config.hemlockNodeId() != leaf_node_id) {
       route_http_request_to_node(leaf_node_id, `${leaf_node_id}/api/processor_spec`, req, res);
@@ -247,7 +250,7 @@ function LariNodeApi(context) {
       return;
     }
 
-    JobManager.getProcessorSpec(processor_name, function(err, spec) {
+    JobManager.getProcessorSpec(processor_name, obj.opts, function(err, spec) {
       if (err) {
         send_500(res, 'Unable to get spec for processor ' + processor_name + ': ' + err);
         return;

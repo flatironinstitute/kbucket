@@ -55,10 +55,13 @@ function LariJobManager() {
   this.removeJob = function(job_id) {
     removeJob(job_id);
   };
-  this.getProcessorSpec = function(processor_name, callback) {
+  this.getProcessorSpec = function(processor_name, opts, callback) {
     let exe = 'ml-spec';
     exe = `${ml_command_prefix}/${exe}`;
     let args = [processor_name];
+    if (opts.container) {
+      args.push('--container='+opts.container);
+    }
     execute_and_read_output(
       exe,
       args, {
@@ -261,6 +264,9 @@ function LariProcessorJob() {
 
     if (opts.force_run) {
       args.push('--force_run');
+    }
+    if (opts.container) {
+      args.push('--container='+opts.container);
     }
 
     // Start housekeeping
