@@ -16,14 +16,22 @@ For example, sometimes it is useful to email data to a collaborator, while other
 
 **Supported operating systems**: Linux and OS X
 
-**Prerequisites**: Install a recent version of NodeJS. [See these instructions](https://github.com/flatironinstitute/mountainlab-js/blob/master/docs/docs_editable/prerequisites.md).
+The easiest way to install kbucket is via conda:
 
-After cloning this repository,
+```
+conda install -c flatiron kbucket
+```
+
+Alternatively, you can install from source after obtaining a [recent version of NodeJS](https://github.com/flatironinstitute/mountainlab-js/blob/master/docs/docs_editable/prerequisites.md).
+
+Clone this repository and install using npm:
 
 ```
 cd kbucket
 npm install
 ```
+
+Then add `kbucket/bin` to your `PATH` environment variable.
 
 ## Overview and usage
 
