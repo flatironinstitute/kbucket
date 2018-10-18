@@ -1,6 +1,6 @@
 {
   "name": "@magland/kbucket",
-  "version": "0.11.1",
+  "version": "0.11.2",
   "description": "Share data for scientific research",
   "scripts": {
     "test": "echo \"No tests\" && exit 0"
