@@ -8,11 +8,18 @@ node_js:
 install:
 - npm install
 deploy:
-- provider: script
-  script: "./devel/travis_deploy.sh"
-  on:
-    tags: true
-  skip_cleanup: true
+  matrix:
+  - provider: script
+    script: "./devel/travis_deploy.sh"
+    on:
+      tags: true
+    skip_cleanup: true
+  - provider: pypi
+    user: magland
+    on:
+      tags: true
+    password:
+      secure: xp4C7keZSYBmLJETy2uxlCxSkeH+HB8hmWYhb8NW8YloKt3TcX/hHUnR3rZAKmvn3kqDRE2yvW8NdV6WOS4gJzC2RPIB2mzVQtw8YWFU5ojagR8aH9j0vFETfaDYdAFEG2xU6bNAUj+bNxeKTePviuqu7mJIA7mmJYWPyZzcdLEvAIVCUF+5os2zYVU2kXNpQgT9R9dZ4sYu1cNjd0rFyy/4XJ/QbsGdnKHx/fpoe2IW/c7VKe5jX0Vba0tww6uVCiqeNEs/ISWFlGcCxQsdCpYZ6gd2Acg3xBsLucUPFEtc5DDCslm82BGvG64NmQC6DK8WU8kGU43Mc9fSlCoINB+C+SmUfX32Z1dZ0ADKbKKg+fDj9YTMvwqrV1ZivL9Ol+igh7okKjgqYoGqhqOPT9C+e2LX7mOT8YVZ1w2uuJwsDkh5krvV6wkVXuTctOUkkYmxlrozcmNWK7kLyra1FhKi5iqusIt8uMATj3L9A1EAfLUt6P+K8CthNmjTHO5CKc6gSwLTFt7TafnrDUWysXUGtWR/2wlSNeoWS6RzoScMrHSfTWpe74nxLyBwrA7udHTmEGKZ9YXl8QM+jcohwoop6/uNo0wzzgbZnumr2EdvZfP3Nvyy69me0izSPJ3lqbhA1Zw/7mL4ibf+XyZ/ykL53phvpBhbN04h9T208qs=
 env:
   global:
   - secure: xRMY8gCng+OYJOXx1p8+c23XOvQFQ3UqYVVvXnCocNiSjuagoR2OfbY8s/mWNfThTw5CsHuT40GRnrL87IHOq3R0lfHDaAvECITIgElldf5hsJzPkQfwdN09LvOJ/QUkvM2d09vV72JxPtYf1hhiXFqaVUH0vIwu6W5JQWDq33Ed+jLNoxGAdBKDWaHll4Gq/DkWV+ldtNFWMzgJ7mZFEP+KIZTw1qkbKPfzoZFvK1Lzgkn5Hj9yxVCmGFoAd0kaLECm2PHmPN2QQg6yAti4ezW4pO0lqmsw2n2PHPuiDkNCJR0PDOOECjaiM5JWwU3f7HZrxvS6m/Y73nArCBA/pYBJe/fLbnv6D4rXFYGy2GS3CbwT6FmlHL1DQ90k165J5Zak85eCWKuHrwdyNbPgHpGStnXdXHkIzX9qyorvOCnmE2lq8UvlxXmRGqLj9dOdLkTreaAkgQMoVjrVc3KNmmw8iXZxf4OD+NHv7hlAXL17NMNswLuyerr9pYUFeNunBBT6JblSb58oDNMc+bcWvPkfPVyFraWYbguQXp2j6MsUEqzSPaVFJAdOPzioBMoEp5681TDaqFqm06joBuVFynItEyh6LWkzdlil7YIMsJ7VF26VQSesdvpfKiuBTwaZ2MmTSRQrh7HJzuK/Jn+YSIywzkaimEdvivnsLB/WzTE=
