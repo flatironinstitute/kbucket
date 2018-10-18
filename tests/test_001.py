@@ -1,4 +1,3 @@
-import numpy as np
 import os, sys
 import unittest
 def append_to_path(dir0): # A convenience function

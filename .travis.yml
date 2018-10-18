@@ -6,7 +6,7 @@ python:
 install:
 - pip install .
 - pip install pytest
-script: pytest
+script: python -m pytest
 deploy:
   provider: pypi
   user: magland
