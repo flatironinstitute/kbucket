@@ -87,7 +87,13 @@ function find_shares_with_file_in_child_hubs(context, opts, callback) {
       cb(); // go to the next one
       return;
     }
-    var urlpath0 = `find/${opts.sha1}/${opts.filename}`;
+    let urlpath0 = '';
+    if (opts.kbshare_id) {
+      urlpath0 = `${opts.kbshare_id}/find/${opts.sha1}/${opts.filename}`; 
+    }
+    else {
+      urlpath0 = `find/${opts.sha1}/${opts.filename}`;  
+    }
     SS.httpOverWebSocketClient().httpRequestJson(urlpath0, function(err, resp) {
       if (!err) {
         let results0 = resp.results || [];
@@ -112,6 +118,10 @@ function find_child_shares_with_file(context, opts, callback) {
   // Loop sequentially through each share key
   // TODO: shall we allow this to be parallel / asynchronous?
   async.eachSeries(kbnode_ids, function(kbnode_id, cb) {
+    if ((opts.kbshare_id) && (opts.kbshare_id != kbnode_id)) {
+      cb(); // not the droid you are looking for
+      return;
+    }
     var SS = context.hub_manager.connectedLeafManager().getConnectedLeaf(kbnode_id);
     if (!SS) { //maybe it disappeared
       cb(); // go to the next one

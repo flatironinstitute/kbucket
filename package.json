@@ -2,7 +2,6 @@
   "name": "@magland/kbucket",
   "version": "0.10.3",
   "description": "Share data for scientific research",
-  "main": "index.js",
   "scripts": {
     "test": "echo \"No tests\" && exit 0"
   },

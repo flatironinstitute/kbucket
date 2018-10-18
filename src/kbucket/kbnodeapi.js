@@ -10,8 +10,10 @@ function KBNodeApi(context) {
   this.handle_nodeinfo = handle_nodeinfo;
   this.handle_readdir = handle_readdir;
   this.handle_download = handle_download;
+  //this.handle_hdf5 = handle_hdf5;
   this.handle_prv = handle_prv;
   this.handle_find = handle_find;
+  this.handle_find_in_share = handle_find_in_share;
 
   let m_context = context;
 
@@ -243,6 +245,68 @@ function KBNodeApi(context) {
     }
   }
 
+  /*
+  function handle_hdf5(kbshare_id, filename, req, res) {
+    m_context.config.incrementMetric('num_requests_hdf5');
+    logger.info('handle_hdf5', {
+      kbshare_id: kbshare_id,
+      filename: filename
+    });
+    //allow_cross_domain_requests(req, res);
+
+    // don't worry too much because express takes care of this below (b/c we specify a root directory)
+    if (!is_safe_path(filename)) {
+      send_500(res, 'Unsafe path: ' + subdirectory);
+      return;
+    }
+    if (m_context.config.hemlockNodeType() == 'hub') {
+      var urlpath0 = `${kbshare_id}/hdf5/${filename}`;
+      route_http_request_to_node(kbshare_id, urlpath0, req, res);
+      return;
+    }
+    // so, m_context.config.hemlockNodeType() = 'share'
+    if (m_context.config.hemlockNodeId() != kbshare_id) {
+      send_500(res, 'Incorrect kbshare id: ' + kbshare_id);
+      return;
+    }
+
+    var path0 = require('path').join(m_context.config.hemlockNodeDirectory(), filename);
+    if ((!exists_sync(path0) && (exists_sync(path0 + '.prv')))) {
+      send_500(res, 'File does not exist, although its .prv does exist.');
+      return;
+    }
+    if (!exists_sync(path0)) {
+      send_404(res);
+      return;
+    }
+    if (!is_file(path0)) {
+      send_500(res, 'Not a file: ' + filename);
+      return;
+    }
+    create_hdf5_data_file(m_context.config.hemlockNodeDirectory()+'/'+path0,req.query,function(err,relative_tmp_fname) {
+      if (err) {
+        send_500(res, 'Error creating hdf5 data: '+err);
+        return;
+      }
+      try {
+        res.sendFile(relative_tmp_fname, {
+          dotfiles: 'allow',
+          root: m_context.config.hemlockNodeDirectory()
+        });
+      } catch (err) {
+        logger.error('Caught exception from res.sendFile: ' + relative_tmp_fname, {
+          error: error.message
+        });
+      }  
+    });
+  }
+
+  function send_hdf5_data(absolute_path,req,res) {
+    // TODO: finish
+    
+  }
+  */
+
   function handle_prv(kbshare_id, filename, req, res) {
     m_context.config.incrementMetric('num_requests_prv');
     logger.info('handle_prv', {
@@ -275,11 +339,23 @@ function KBNodeApi(context) {
     res.json(prv0);
   }
 
-  function handle_find(sha1, filename, req, res) {
+  function handle_find_in_share(kbshare_id, sha1, filename, req, res) {
+    m_context.config.incrementMetric('num_requests_find_in_share');
+    logger.info('handle_find_in_share', {
+      sha1: sha1,
+      filename: filename,
+      kbshare_id: kbshare_id
+    });
+
+    handle_find(sha1, filename, req, res, kbshare_id);
+  }
+
+  function handle_find(sha1, filename, req, res, kbshare_id) {
     m_context.config.incrementMetric('num_requests_find');
     logger.info('handle_find', {
       sha1: sha1,
-      filename: filename
+      filename: filename,
+      kbshare_id: kbshare_id
     });
     //allow_cross_domain_requests(req, res);
 
@@ -291,9 +367,10 @@ function KBNodeApi(context) {
     // Note: In future we should only allow method=GET
     if ((req.method == 'GET') || (req.method == 'POST')) {
       // find the file
-      find_file(context, {
+      find_file(m_context, {
         sha1: sha1,
-        filename: filename //only used for convenience in appending the url, not for finding the file
+        filename: filename, //only used for convenience in appending the url, not for finding the file
+        kbshare_id: kbshare_id
       }, function(err, resp) {
         if (err) {
           // There was an error in trying to find the file
