@@ -4,7 +4,7 @@ pkg_name="kbucket"
 
 setuptools.setup(
     name=pkg_name,
-    version="0.11.3",
+    version="0.11.4",
     author="Jeremy Magland",
     author_email="jmagland@flatironinstitute.org",
     description="Python client for kbucket",
@@ -12,7 +12,8 @@ setuptools.setup(
     packages=setuptools.find_packages(),
     package_data={},
     install_requires=[
-        "requests"
+        "requests",
+        "pairio"
     ],
     classifiers=(
         "Programming Language :: Python :: 3",
