@@ -8,3 +8,4 @@ package-lock.json
 *sublime-workspace
 __pycache__
 .ipynb_checkpoints
+.env

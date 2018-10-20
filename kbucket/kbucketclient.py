@@ -92,6 +92,50 @@ class KBucketClient():
     else:
       return self._sha1_cache.computeFileSha1(path)
 
+  def uploadFile(self,path,share_id=None,token=None):
+    if not share_id:
+      share_id=os.getenv('KBUCKET_UPLOAD_SHARE_ID','')
+    if not share_id:
+      raise Exception('Environment variable not set: KBUCKET_UPLOAD_SHARE_ID')
+    share_id=_filter_share_id(share_id)
+
+    if not token:
+      token=os.getenv('KBUCKET_UPLOAD_TOKEN','')
+    if not token:
+      raise Exception('Environment variable not set: KBUCKET_UPLOAD_TOKEN')
+
+    server_url=self._get_cas_upload_url_for_share(share_id=share_id)
+
+    path=self.realizeFile(path)
+    if not path:
+      raise Exception('Unable to realize file: '+path)
+    sha1=self.computeFileSha1(path)
+
+    url_check_path0='/check/'+sha1
+    signature=_sha1_of_object({'path':url_check_path0,'token':token})
+    url_check=server_url+url_check_path0+'?signature='+signature+'&size={}'.format(os.path.getsize(path))
+    resp_obj=_http_get_json(url_check)
+    if not resp_obj['success']:
+      raise Exception('Problem checking for upload: '+resp_obj['error'])
+    if resp_obj['found']:
+      print ('Already on server')
+      return
+    if not resp_obj['okay_to_upload']:
+      print ('Cannot upload: '+resp_obj['message'])
+      return
+
+    url_path0='/upload/'+sha1
+    signature=_sha1_of_object({'path':url_path0,'token':token})
+    url=server_url+url_path0+'?signature='+signature
+    resp_obj=_http_post_file_data(url,path)
+    if not resp_obj['success']:
+      raise Exception('Problem posting file data: '+resp_obj['error'])
+
+  def getNodeInfo(self,share_id):
+    share_id=_filter_share_id(share_id)
+    url=self._config['url']+'/'+share_id+'/api/nodeinfo'
+    return _http_get_json(url)
+
   def _find_file_helper(self,*,path,sha1,share_id):
     search_remote=self._config['remote']
     if path is not None:
@@ -148,6 +192,7 @@ class KBucketClient():
     return obj
 
   def _find_in_share(self,*,sha1,share_id):
+    share_id=_filter_share_id(share_id)
     url=self._config['url']+'/'+share_id+'/api/find/'+sha1
     obj=_http_get_json(url)
     if not obj['success']:
@@ -166,6 +211,12 @@ class KBucketClient():
     if not obj['success']:
       return None
     return obj
+
+  def _get_cas_upload_url_for_share(self,share_id):
+    node_info=self.getNodeInfo(share_id)
+    if not node_info:
+      raise Exception('Unable to get node info for share: '+share_id)
+    return node_info['info'].get('cas_upload_url',None)
 
 class KBucketClientDirectory:
   def __init__(self):
@@ -206,6 +257,15 @@ class KBucketClientDirectoryDir:
 
 def _http_get_json(url):
   return json.load(urllib.request.urlopen(url))
+
+def _http_post_file_data(url,fname):
+  with open(fname, 'rb') as f:
+    try:
+      obj=requests.post(url, data=f)
+    except:
+      raise Exception('Error posting file data.')
+  if obj.status_code!=200:
+    raise Exception('Error posting file data: {} {}'.format(obj.status_code,obj.content.decode('utf-8')))
 
 def _test_url_accessible(url):
   try:
@@ -260,7 +320,7 @@ class Sha1Cache():
   def downloadFile(self,url,sha1):
     path=self._get_path(sha1,create=True)
     path_tmp=path+'.downloading'
-    print('Downloading file: {} -> {}'.format(url,path))
+    print ('Downloading file: {} -> {}'.format(url,path))
     sha1b=self._download_and_compute_sha1(url,path_tmp)
     if not sha1b:
       if os.exists(path_tmp):
@@ -331,7 +391,7 @@ class Sha1Cache():
 
 def _compute_file_sha1(path):
   if (os.path.getsize(path)>1024*1024*100):
-    print('Computing sha1 of {}'.format(path))
+    print ('Computing sha1 of {}'.format(path))
   BLOCKSIZE = 65536
   sha = hashlib.sha1()
   with open(path, 'rb') as file:
@@ -363,6 +423,10 @@ def _stat_objects_match(aa,bb):
 def _compute_string_sha1(txt):
   hash_object = hashlib.sha1(txt.encode('utf-8'))
   return hash_object.hexdigest()
+
+def _sha1_of_object(obj):
+  txt=json.dumps(obj, sort_keys=True, separators=(',', ':'))
+  return _compute_string_sha1(txt)
 
 def _read_json_file(path):
   with open(path) as f:
