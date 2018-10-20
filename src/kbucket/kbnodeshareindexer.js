@@ -52,13 +52,19 @@ function KBNodeShareIndexer(config) {
         size: file0.prv.original_size
       };
     }
-    return {
+    m_files_by_sha1=JSON.parse(JSON.stringify(files_by_sha1));
+    let ret={
       files_by_sha1: files_by_sha1
     };
+    return ret;
   };
+  this.findFileBySha1 = function(sha1, callback) {
+    callback(m_files_by_sha1[sha1] || null);
+  }
 
   var m_queued_files = {};
   var m_indexed_files = {};
+  let m_files_by_sha1 = {};
   let m_indexed_something = false;
   let m_prv_cache_manager = new PrvCacheManager(config.configDir(), config.hemlockNodeDirectory());
 

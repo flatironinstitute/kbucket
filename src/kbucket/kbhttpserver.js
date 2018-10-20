@@ -28,10 +28,26 @@ function KBHttpServer(API) {
     API.handle_nodeinfo(params.kbnode_id, req, res);
   });
 
+  // API find in share
+  m_app.get('/:kbshare_id/api/find/:sha1/:filename(*)', function(req, res) {
+    var params = req.params;
+    API.handle_find_in_share(params.kbshare_id, params.sha1, params.filename, req, res);
+  });
+  m_app.get('/:kbshare_id/api/find/:sha1/', function(req, res) {
+    var params = req.params;
+    API.handle_find_in_share(params.kbshare_id, params.sha1, '', req, res);
+  });
+
   // API download
   m_app.get('/:kbshare_id/download/:filename(*)', function(req, res) {
     var params = req.params;
     API.handle_download(params.kbshare_id, params.filename, req, res);
+  });
+
+  // API download hdf5 data
+  m_app.get('/:kbshare_id/hdf5/:filename(*)', function(req, res) {
+    var params = req.params;
+    API.handle_hdf5(params.kbshare_id, params.filename, req, res);
   });
 
   // API prv

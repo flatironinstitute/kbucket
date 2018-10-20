@@ -6,3 +6,6 @@ kbucketgui/package-lock.json
 package-lock.json
 *sublime-project
 *sublime-workspace
+__pycache__
+.ipynb_checkpoints
+.env
