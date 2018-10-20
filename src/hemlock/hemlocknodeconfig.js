@@ -250,7 +250,8 @@ function HemlockNodeConfig(hemlock_node_directory, options) {
           type: 'input',
           name: 'passcode',
           message: 'Passcode for this hub:',
-          default: get_config('passcode') || ''
+          default: get_config('passcode') || '',
+          optional: true
         });
         questions.push({
           type: 'input',
@@ -444,7 +445,8 @@ function HemlockNodeConfig(hemlock_node_directory, options) {
       owner: that.getConfig('owner'),
       owner_email: that.getConfig('owner_email'),
       listen_url: that.listenUrl() || undefined,
-      public_key: that.publicKey() || undefined
+      public_key: that.publicKey() || undefined,
+      cas_upload_url: that.getConfig('cas_upload_url') || undefined
     };
     return ret;
   }

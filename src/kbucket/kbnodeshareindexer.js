@@ -52,13 +52,19 @@ function KBNodeShareIndexer(config) {
         size: file0.prv.original_size
       };
     }
-    return {
+    m_files_by_sha1=JSON.parse(JSON.stringify(files_by_sha1));
+    let ret={
       files_by_sha1: files_by_sha1
     };
+    return ret;
   };
+  this.findFileBySha1 = function(sha1, callback) {
+    callback(m_files_by_sha1[sha1] || null);
+  }
 
   var m_queued_files = {};
   var m_indexed_files = {};
+  let m_files_by_sha1 = {};
   let m_indexed_something = false;
   let m_prv_cache_manager = new PrvCacheManager(config.configDir(), config.hemlockNodeDirectory());
 
@@ -121,8 +127,8 @@ function KBNodeShareIndexer(config) {
     async.eachSeries(relpaths, function(relpath, cb) {
       handle_queued_file(relpath, function(err) {
         if (err) {
-          callback(err);
-          return;
+          //callback(err);
+          //return;
         }
         cb();
       });
@@ -178,8 +184,11 @@ function KBNodeShareIndexer(config) {
     }
     const fullpath = require('path').join(config.hemlockNodeDirectory(), relpath);
     console.info(`Computing prv for: ${relpath}`);
-    computePrvObject(fullpath, function(err, obj) {
+    //computePrvObject(fullpath, function(err, obj) {
+    // Note: it's important to do it like the following, because node-sha1 sometimes crashes (if the file disappears) so we want to separate this into a different process
+    run_prv_create(fullpath, function(err,obj) {
       if (err) {
+        console.error('Error computing prv ***: '+err);
         callback(err);
         return;
       }
@@ -187,6 +196,34 @@ function KBNodeShareIndexer(config) {
       callback(null, obj);
     });
   }
+}
+
+function run_prv_create(path,callback) {
+  run_command_and_read_stdout(__dirname+`/kb-prv-create.js ${path}`,function(err,txt) {
+    if (err) {
+      callback(err);
+      return;
+    }
+    let obj;
+    try {
+      obj=JSON.parse(txt.trim());
+    }
+    catch(err) {
+      callback('Error parsing json output of kb-prv-create.js.');
+      return;
+    }
+    callback(null,obj);
+  });
+}
+
+function run_command_and_read_stdout(cmd, callback) {
+  require('child_process').exec(cmd,function(error, stdout, stderr) { 
+    if (error) {
+      callback(error.message);
+      return;
+    }
+    callback(null,stdout); 
+  });
 }
 
 function stat_file(fname) {
@@ -289,7 +326,12 @@ function PrvCacheManager(config_dir, node_directory) {
     return get_prv_from_cache(relpath);
   };
   this.savePrvToCache = function(relpath, prv) {
-    save_prv_to_cache(relpath, prv);
+    try {
+      save_prv_to_cache(relpath, prv);
+    }
+    catch(err) {
+      console.warn(`Warning: problem saving prv to cache (relpath=${relpath}): ${err.message}`);
+    }
   };
 
   if (!require('fs').existsSync(config_dir + '/prv_cache')) {
@@ -424,14 +466,26 @@ function compute_file_sha1(path, opts, callback) {
   var opts2 = {};
   if (opts.start_byte) opts2.start = opts.start_byte;
   if (opts.end_byte) opts2.end = opts.end_byte;
-  var stream = require('fs').createReadStream(path, opts2);
-  sha1(stream, function(err, hash) {
-    if (err) {
-      callback('Error: ' + err);
-      return;
-    }
-    callback(null, hash);
-  });
+  try {
+    var stream = require('fs').createReadStream(path, opts2);
+  }
+  catch(err) {
+    callback('Error creating read stream for file: '+path);
+    return;
+  }
+  try {
+    sha1(stream, function(err, hash) {
+      if (err) {
+        console.error(err);
+        callback('Error:---: ' + err);
+        return;
+      }
+      callback(null, hash);
+    });
+  }
+  catch(err) {
+    callback('Error (*): '+err.mesage);
+  }
 }
 
 function include_file_name(name) {

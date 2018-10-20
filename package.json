@@ -1,8 +1,7 @@
 {
   "name": "@magland/kbucket",
-  "version": "0.8.4",
+  "version": "0.11.4",
   "description": "Share data for scientific research",
-  "main": "index.js",
   "scripts": {
     "test": "echo \"No tests\" && exit 0"
   },
@@ -22,6 +21,7 @@
   "dependencies": {
     "async": "^2.6.1",
     "axios": "^0.18.0",
+    "canonical-json": "0.0.4",
     "chokidar": "^2.0.3",
     "cors": "^2.8.4",
     "email-validator": "^2.0.4",
@@ -30,6 +30,7 @@
     "fs-copy-file-sync": "^1.1.1",
     "inquirer": "^6.0.0",
     "jsondiffpatch": "^0.3.10",
+    "kbclient": "latest",
     "keypair": "^1.0.1",
     "mountainlab": "latest",
     "node-sha1": "^1.0.1",
@@ -42,5 +43,13 @@
   },
   "directories": {
     "bin": "bin"
+  },
+  "conda": {
+    "build_number": 0,
+    "build_script": [
+      "tgzfile=$(npm pack)",
+      "npm install -g $tgzfile"
+    ],
+    "test_commands": []
   }
 }
