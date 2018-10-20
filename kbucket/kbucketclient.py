@@ -5,6 +5,7 @@ import random
 import hashlib
 import requests
 from pairio import client as pairio
+from shutil import copyfile
 
 class KBucketClient():
   def __init__(self):
@@ -27,16 +28,27 @@ class KBucketClient():
       self._config['remote']=remote
 
   def findFile(self,path=None,*,sha1=None,share_id=None):
-    path, sha1 = self._find_file_helper(path=path,sha1=sha1,share_id=share_id)
+    path, sha1, size = self._find_file_helper(path=path,sha1=sha1,share_id=share_id)
     return path
 
-  def realizeFile(self,path=None,*,sha1=None,share_id=None):
-    path, sha1 = self._find_file_helper(path=path,sha1=sha1,share_id=share_id)
+  def realizeFile(self,path=None,*,sha1=None,share_id=None,target_path=None):
+    path, sha1, size = self._find_file_helper(path=path,sha1=sha1,share_id=share_id)
     if not path:
       return None
     if not _is_url(path):
-      return path
-    return self._sha1_cache.downloadFile(url=path,sha1=sha1)
+      if target_path is not None:
+        if target_path==path:
+          return path
+        else:
+          copyfile(path,target_path)
+          return path
+      else:
+        return path
+    return self._sha1_cache.downloadFile(url=path,sha1=sha1,target_path=target_path)
+
+  def getFileSize(self, path=None,*,sha1=None,share_id=None):
+    path, sha1, size = self._find_file_helper(path=path,sha1=sha1,share_id=share_id)
+    return size
 
   def moveFileToCache(self,path):
     return self._sha1_cache.moveFileToCache(path)
@@ -87,7 +99,7 @@ class KBucketClient():
       sha1=list[2]
       return sha1
     elif path.startswith('kbucket://'):
-      path, sha1 = self._find_file_helper(path=path,sha1=None,share_id=None)
+      path, sha1, size = self._find_file_helper(path=path,sha1=None,share_id=None)
       return sha1
     else:
       return self._sha1_cache.computeFileSha1(path)
@@ -154,20 +166,20 @@ class KBucketClient():
         path0='/'.join(list[3:])
         prv=self._get_prv_for_file(share_id=share_id,path=path0)
         if not prv:
-          return (None, None)
+          return (None, None, None)
         sha1=prv['original_checksum']
         search_remote=True
         ### continue to below
       else:
         if os.path.exists(path): ## Todo: also check if it is file
-          return (path, None)
+          return (path, None, os.path.getsize(path))
         else:
-          return (None, None)
+          return (None, None, None)
   
     if self._config['local']:
       path=self._sha1_cache.findFile(sha1=sha1)
       if path:
-        return (path,sha1)
+        return (path,sha1,os.path.getsize(path))
 
     if search_remote:
       all_share_ids=[]
@@ -176,12 +188,12 @@ class KBucketClient():
       else:
         all_share_ids=self._config['share_ids']
       for id in all_share_ids:
-        url=self._find_in_share(sha1=sha1,share_id=id)
+        url,size=self._find_in_share(sha1=sha1,share_id=id)
         if url:
-          return (url,sha1)
-      return (None,None)
+          return (url,sha1,size)
+      return (None,None,None)
 
-    return (None,None)
+    return (None,None,None)
 
   def _get_prv_for_file(self,*,share_id,path):
     url=self._config['url']+'/'+share_id+'/prv/'+path
@@ -198,12 +210,14 @@ class KBucketClient():
     if not obj['success']:
       raise Exception('Error finding file in share: '+obj['error'])
     if not obj['found']:
-      return None
+      return (None,None)
     urls0=obj['urls']
+    results0=obj['results']
     for url0 in urls0:
       if _test_url_accessible(url0):
-        return url0
-    return None
+        size0=results0[0]['size']
+        return (url0,size0)
+    return (None,None)
 
   def _read_kbucket_dir(self,*,share_id,path):
     url=self._config['url']+'/'+share_id+'/api/readdir/'+path
@@ -318,10 +332,14 @@ class Sha1Cache():
       else:
         os.remove(hints_fname)
 
-  def downloadFile(self,url,sha1):
-    path=self._get_path(sha1,create=True)
-    path_tmp=path+'.downloading'
-    print ('Downloading file: {} -> {}'.format(url,path))
+  def downloadFile(self,url,sha1,target_path=None):
+    alternate_target_path=False
+    if target_path is None:
+      target_path=self._get_path(sha1,create=True)
+    else:
+      alternate_target_path=True
+    path_tmp=target_path+'.downloading'
+    print ('Downloading file: {} -> {}'.format(url,target_path))
     sha1b=self._download_and_compute_sha1(url,path_tmp)
     if not sha1b:
       if os.exists(path_tmp):
@@ -330,10 +348,12 @@ class Sha1Cache():
       if os.exists(path_tmp):
         os.remove(path_tmp)
       raise Exception('sha1 of downloaded file does not match expected {} {}'.format(url,sha1))
-    if os.path.exists(path):
-      os.remove(path)
-    os.rename(path_tmp,path)
-    return path
+    if os.path.exists(target_path):
+      os.remove(target_path)
+    os.rename(path_tmp,target_path)
+    if alternate_target_path:
+      self.computeFileSha1(target_path,_known_sha1=sha1)
+    return target_path
 
   def moveFileToCache(self,path):
     sha1=self.computeFileSha1(path)
@@ -345,7 +365,7 @@ class Sha1Cache():
       os.rename(path,path0)
     return path0
 
-  def computeFileSha1(self,path):
+  def computeFileSha1(self,path,_known_sha1=None):
     aa=_get_stat_object(path)
     aa_hash=_compute_string_sha1(json.dumps(aa, sort_keys=True))
 
@@ -354,8 +374,16 @@ class Sha1Cache():
       obj=_read_json_file(path0)
       bb=obj['stat']
       if _stat_objects_match(aa,bb):
-        return obj['sha1']
-    sha1=_compute_file_sha1(path)
+        if obj.get('sha1',None):
+          return obj['sha1']
+    if _known_sha1 is None:
+      sha1=_compute_file_sha1(path)
+    else:
+      sha1=_known_sha1
+
+    if not sha1:
+      return None
+
     obj=dict(
       sha1=sha1,
       stat=aa
@@ -372,7 +400,7 @@ class Sha1Cache():
     ## todo: use hints for findFile
     return sha1
 
-  def _get_path(self,sha1,*,create):
+  def _get_path(self,sha1,*,create=True):
     path0=self._directory+'/{}/{}{}'.format(sha1[0],sha1[1],sha1[2])
     if create:
       if not os.path.exists(path0):
