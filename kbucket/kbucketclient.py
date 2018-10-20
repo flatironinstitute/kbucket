@@ -266,6 +266,7 @@ def _http_post_file_data(url,fname):
       raise Exception('Error posting file data.')
   if obj.status_code!=200:
     raise Exception('Error posting file data: {} {}'.format(obj.status_code,obj.content.decode('utf-8')))
+  return json.loads(obj.content)
 
 def _test_url_accessible(url):
   try:
