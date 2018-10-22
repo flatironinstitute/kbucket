@@ -43,7 +43,7 @@ POST:/upload/[sha1]?signature=[signature]
 
 */
 
-require('dotenv').config({ path: __dirname+'/../../.env' });
+require('dotenv').config({ path: '.env' });
 
 const express = require('express');
 const cors = require('cors');
