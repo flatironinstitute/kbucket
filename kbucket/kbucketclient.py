@@ -55,45 +55,59 @@ class KBucketClient():
   def moveFileToCache(self,path):
     return self._sha1_cache.moveFileToCache(path)
 
-  def readDir(self,path):
+  def readDir(self,path,recursive=False,include_sha1=True):
     if path.startswith('kbucket://'):
       list=path.split('/')
       share_id=_filter_share_id(list[2])
       path0='/'.join(list[3:])
-      obj=self._read_kbucket_dir(share_id=share_id,path=path0)
-      if not obj:
-        return None
-      ret=KBucketClientDirectory()
-      for a in obj['files']:
-        ff=KBucketClientDirectoryFile()
-        ff.name=a['name']
-        ff.size=a['size']
-        ff.path=path+'/'+ff.name
-        ff.sha1=a['prv']['original_checksum']
-        ret.files.append(ff)
-      for a in obj['dirs']:
-        ff=KBucketClientDirectoryDir()
-        ff.name=a['name']
-        ff.path=path+'/'+ff.name
-        ret.dirs.append(ff)
-      return ret
+      ret=self._read_kbucket_dir(share_id=share_id,path=path0,recursive=recursive,include_sha1=include_sha1)
     else:
-      ret=KBucketClientDirectory()
+      ret=self._read_file_system_dir(path=path,recursive=recursive,include_sha1=include_sha1)
+    return ret
+
+  def _read_file_system_dir(self,*,path,recursive,include_sha1):
+      ret=dict(
+        files={},
+        dirs={}
+      )
       list=os.listdir(path)
-      for fname in list:
-        if os.path.isfile(fname):
-          ff=KBucketClientDirectoryFile()
-          ff.name=fname
-          ff.path=path+'/'+ff.name
-          ff.size=os.path.getsize(ff.path)
-          ff.sha1=None
-          ret.files.append(ff)
-        elif os.path.isdir(fname):
-          ff=KBucketClientDirectoryDir()
-          ff.name=fname
-          ff.path=path+'/'+ff.name
-          ret.dirs.append(ff)
+      for name0 in list:
+        path0=path+'/'+name0
+        if os.path.isfile(path0):
+          ret['files'][name0]=dict(
+            size=os.path.getsize(path0)
+          )
+          if include_sha1:
+            ret['files'][name0]['sha1']=self.computeFileSha1(path0)
+        elif os.path.isdir(path0):
+          ret['dirs'][name0]={}
+          if recursive:
+            ret['dirs'][name0]=self._read_file_system_dir(path=path0,recursive=recursive,include_sha1=include_sha1)
       return ret
+
+  def _read_kbucket_dir(self,*,share_id,path,recursive,include_sha1):
+    url=self._config['url']+'/'+share_id+'/api/readdir/'+path
+    obj=_http_get_json(url)
+    if not obj['success']:
+      return None
+
+    ret=dict(
+      files={},
+      dirs={}
+    )
+    for file0 in obj['files']:
+      name0=file0['name']
+      ret['files'][name0]=dict(
+        size=file0['size']
+      )
+      if include_sha1:
+        ret['files'][name0]['sha1']=file0['prv']['original_checksum']
+    for dir0 in obj['dirs']:
+      name0=dir0['name']
+      ret['dirs'][name0]={}
+      if recursive:
+        ret['dirs'][name0]=_read_kbucket_dir(path+'/'+name0)
+    return ret
 
   def computeFileSha1(self,path):
     if path.startswith('sha1://'):
@@ -105,6 +119,10 @@ class KBucketClient():
       return sha1
     else:
       return self._sha1_cache.computeFileSha1(path)
+
+  def computeDirHash(self,path):
+    dd=self.readDir(path=path,recursive=True,include_sha1=True)
+    return _sha1_of_object(dd)
 
   def uploadFile(self,path,share_id=None,upload_token=None):
     if not share_id:
@@ -197,7 +215,7 @@ class KBucketClient():
     if key is not None:
       sha1=pairio.get(key=key,collection=collection)
       if not sha1:
-        raise Exception('Unable to find file SHA-1 for this key.')
+        return (None,None,None)
     if path is not None:
       if sha1 is not None:
         raise Exception('Cannot specify both path and sha1 in find file')
@@ -257,13 +275,6 @@ class KBucketClient():
         return (url0,size0)
     return (None,None)
 
-  def _read_kbucket_dir(self,*,share_id,path):
-    url=self._config['url']+'/'+share_id+'/api/readdir/'+path
-    obj=_http_get_json(url)
-    if not obj['success']:
-      return None
-    return obj
-
   def _get_cas_upload_url_for_share(self,share_id):
     node_info=self.getNodeInfo(share_id)
     if not node_info:
@@ -272,40 +283,18 @@ class KBucketClient():
 
 class KBucketClientDirectory:
   def __init__(self):
-    self.files=[]
-    self.dirs=[]
+    self.files=dict()
+    self.dirs=dict()
   def toDict(self):
     ret=dict(
-      files=[],
-      dirs=[]
+      files={},
+      dirs={}
     )
-    for file in self.files:
-      ret['files'].append(file.toDict())
-    for dir in self.dirs:
-      ret['dirs'].append(dir.toDict())
+    for name in self.files:
+      ret['files'][name]=self.files[name].toDict()
+    for name in self.dirs:
+      ret['dirs'][name]=dir.toDict()
     return ret
-
-class KBucketClientDirectoryFile:
-  def __init__(self):
-    self.name=''
-    self.path=''
-    self.size=None
-    self.sha1=None
-  def toDict(self):
-    return dict(
-      name=self.name,
-      size=self.size,
-      sha1=self.sha1
-    )
-
-class KBucketClientDirectoryDir:
-  def __init__(self):
-    self.name=''
-    self.path=''
-  def toDict(self):
-    return dict(
-      name=self.name
-    )
 
 def _http_get_json(url):
   return json.load(urllib.request.urlopen(url))
