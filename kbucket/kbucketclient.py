@@ -20,8 +20,10 @@ class KBucketClient():
     )
     self._sha1_cache=Sha1Cache()
     self._sha1_cache.setDirectory(self._config['local_cache_dir'])
+    self._nodeinfo_cache={}
+    self._verbose=False
 
-  def setConfig(self,*,share_ids=None,url=None,upload_share_id=None,upload_token=None,local_cache_dir=None):
+  def setConfig(self,*,share_ids=None,url=None,upload_share_id=None,upload_token=None,local_cache_dir=None,verbose=None):
     if share_ids is not None:
       if type(share_ids)!=list:
         raise Exception('share_ids must be a list')
@@ -37,6 +39,8 @@ class KBucketClient():
     if local_cache_dir is not None:
       self._config['local_cache_dir']=local_cache_dir
       self._sha1_cache.setDirectory(self._config['local_cache_dir'])
+    if verbose is not None:
+      self._verbose=verbose
 
   def getConfig(self):
     ret=self._config.copy()
@@ -54,8 +58,8 @@ class KBucketClient():
       raise Exception('Upload failed.')
     print('Test upload successful.')
 
-  def findFile(self,path=None,*,sha1=None,share_ids=None,key=None,collection=None):
-    path, sha1, size = self._find_file_helper(path=path,sha1=sha1,share_ids=share_ids,key=key,collection=collection)
+  def findFile(self,path=None,*,sha1=None,share_ids=None,key=None,collection=None,remote_only=False):
+    path, sha1, size = self._find_file_helper(path=path,sha1=sha1,share_ids=share_ids,key=key,collection=collection,remote_only=remote_only)
     return path
 
   def realizeFile(self,path=None,*,sha1=None,share_ids=None,target_path=None,key=None,collection=None):
@@ -71,7 +75,7 @@ class KBucketClient():
           return path
       else:
         return path
-    return self._sha1_cache.downloadFile(url=path,sha1=sha1,target_path=target_path)
+    return self._sha1_cache.downloadFile(url=path,sha1=sha1,target_path=target_path,size=size)
 
   def getFileSize(self, path=None,*,sha1=None,share_ids=None,key=None,collection=None):
     path, sha1, size = self._find_file_helper(path=path,sha1=sha1,share_ids=share_ids,key=key,collection=collection)
@@ -79,6 +83,9 @@ class KBucketClient():
 
   def moveFileToCache(self,path):
     return self._sha1_cache.moveFileToCache(path)
+
+  def copyFileToCache(self,path):
+    return self._sha1_cache.copyFileToCache(path)
 
   def readDir(self,path,recursive=False,include_sha1=True):
     if path.startswith('kbucket://'):
@@ -112,7 +119,7 @@ class KBucketClient():
 
   def _read_kbucket_dir(self,*,share_id,path,recursive,include_sha1):
     url=self._config['url']+'/'+share_id+'/api/readdir/'+path
-    obj=_http_get_json(url)
+    obj=self._http_get_json(url)
     if not obj['success']:
       return None
 
@@ -140,7 +147,7 @@ class KBucketClient():
       sha1=list[2]
       return sha1
     elif path.startswith('kbucket://'):
-      path, sha1, size = self._find_file_helper(path=path,sha1=None,share_id=None,key=None,collection=None)
+      path, sha1, size = self._find_file_helper(path=path)
       return sha1
     else:
       return self._sha1_cache.computeFileSha1(path)
@@ -149,29 +156,44 @@ class KBucketClient():
     dd=self.readDir(path=path,recursive=True,include_sha1=True)
     return _sha1_of_object(dd)
 
-  def uploadFile(self,path,share_id=None,upload_token=None):
+  def _save_file_helper(self,path,share_id=None,upload_token=None,basename=None):
     if not share_id:
       share_id=self._config['upload_share_id']
-    if not share_id:
-      raise Exception('Upload share id not set.')
-    share_id=_filter_share_id(share_id)
+    if share_id:
+      share_id=_filter_share_id(share_id)  
 
+    if basename is None:
+      basename=os.path.basename(path)
+    
     if not upload_token:
       upload_token=self._config['upload_token']
-    if not upload_token:
-      raise Exception('Upload token not set.')
-
-    server_url=self._get_cas_upload_url_for_share(share_id=share_id)
+    if share_id and (not upload_token):
+      raise Exception('Upload token not set for share_id='+share_id)
 
     path=self.realizeFile(path)
     if not path:
       raise Exception('Unable to realize file for upload.')
     sha1=self.computeFileSha1(path)
 
+    ret_path='sha1://{}/{}'.format(sha1,basename)
+
+    self.copyFileToCache(path)
+
+    if not share_id:
+      # share_id not set... not uploading.
+      return ret_path
+
+    url00,size00=self._find_in_share(sha1=sha1,share_id=share_id)
+    if url00:
+      print ('Already on server.')
+      return ret_path
+
+    server_url=self._get_cas_upload_url_for_share(share_id=share_id)
+
     url_check_path0='/check/'+sha1
     signature=_sha1_of_object({'path':url_check_path0,'token':upload_token})
     url_check=server_url+url_check_path0+'?signature='+signature+'&size={}'.format(os.path.getsize(path))
-    resp_obj=_http_get_json(url_check)
+    resp_obj=self._http_get_json(url_check)
     if not resp_obj['success']:
       raise Exception('Problem checking for upload: '+resp_obj['error'])
     if not resp_obj['okay_to_upload']:
@@ -186,18 +208,18 @@ class KBucketClient():
       if not resp_obj['success']:
         raise Exception('Problem posting file data: '+resp_obj['error'])
     else:
-      print ('Already on server')
+      print ('Already on server (*)')
 
-    path0='sha1://{}/{}'.format(sha1,os.path.basename(path))
-    return path0
+    return ret_path
 
-  def saveFile(self,fname,*,key,share_id=None,upload_token=None):
-    if share_id or self._config['upload_share_id']:
-      ret=self.uploadFile(fname,share_id=share_id,upload_token=upload_token)
+  def saveFile(self,fname,*,key=None,share_id=None,upload_token=None,basename=None):
+    ret=self._save_file_helper(fname,share_id=share_id,upload_token=upload_token,basename=basename)
 
     if key:
       sha1=self.computeFileSha1(fname)
       pairio.set(key,sha1)
+
+    return ret
 
   def saveObject(self,object,*,key,format='json',share_id=None,upload_token=None):
     tmp_fname=self._create_temporary_file_for_object(object=object,format=format)
@@ -206,7 +228,7 @@ class KBucketClient():
     except:
       os.remove(tmp_fname)
       raise
-    self.saveFile(fname,share_id=share_id,upload_token=upload_token,key=key)
+    self.saveFile(fname,share_id=share_id,upload_token=upload_token,key=key,basename='object.json')
 
   def loadObject(self,*,format='json',share_ids=None,key=None,collection=None):
     fname=self.realizeFile(share_ids=share_ids,key=key,collection=collection)
@@ -218,23 +240,31 @@ class KBucketClient():
       raise Exception('Unsupported format in loadObject: '+format)
     return ret
 
+  def getTemporaryFileName(self,fname):
+    return self._create_temporary_fname(fname)
+
   def _create_temporary_file_for_object(self,*,object,format):
-    tmp_fname=self._create_temporary_fname()
+    tmp_fname=self._create_temporary_fname('object.json')
     if format=='json':
       _write_json_file(object,tmp_fname)
     else:
       raise Exception('Unsupported format in saveObject: '+format)
     return tmp_fname
 
-  def _create_temporary_fname(self):
-    return tempfile.gettempdir()+'/tmp_kbucket_'+''.join(random.choices('abcdefghijklmnopqrstuvwxyz', k=10))
+  def _create_temporary_fname(self,fname):
+    return tempfile.gettempdir()+'/tmp_kucketclient_'+''.join(random.choices('abcdefghijklmnopqrstuvwxyz', k=10))+'.'+fname
 
   def getNodeInfo(self,share_id):
+    if share_id in self._nodeinfo_cache:
+      return self._nodeinfo_cache[share_id]
     share_id=_filter_share_id(share_id)
     url=self._config['url']+'/'+share_id+'/api/nodeinfo'
-    return _http_get_json(url)
+    ret=self._http_get_json(url)
+    if ret:
+      self._nodeinfo_cache[share_id]=ret
+    return ret
 
-  def _find_file_helper(self,*,path,sha1,share_ids,key,collection):
+  def _find_file_helper(self,*,path,sha1=None,share_ids=None,key=None,collection=None,remote_only=False):
     if share_ids is None:
       share_ids=self._config['share_ids']
     if key is not None:
@@ -265,7 +295,10 @@ class KBucketClient():
           return (None, None, None)
   
     # search locally
-    path=self._sha1_cache.findFile(sha1=sha1)
+    if remote_only:
+      path=''
+    else:
+      path=self._sha1_cache.findFile(sha1=sha1)
     if path:
       return (path,sha1,os.path.getsize(path))
 
@@ -278,7 +311,7 @@ class KBucketClient():
   def _get_prv_for_file(self,*,share_id,path):
     url=self._config['url']+'/'+share_id+'/prv/'+path
     try:
-      obj=_http_get_json(url)
+      obj=self._http_get_json(url)
     except:
       return None
     return obj
@@ -286,7 +319,7 @@ class KBucketClient():
   def _find_in_share(self,*,sha1,share_id):
     share_id=_filter_share_id(share_id)
     url=self._config['url']+'/'+share_id+'/api/find/'+sha1
-    obj=_http_get_json(url)
+    obj=self._http_get_json(url)
     if not obj['success']:
       raise Exception('Error finding file in share: '+obj['error'])
     if not obj['found']:
@@ -305,6 +338,9 @@ class KBucketClient():
       raise Exception('Unable to get node info for share: '+share_id)
     return node_info['info'].get('cas_upload_url',None)
 
+  def _http_get_json(self,url):
+    return _http_get_json(url,verbose=self._verbose)
+
 class KBucketClientDirectory:
   def __init__(self):
     self.files=dict()
@@ -320,8 +356,21 @@ class KBucketClientDirectory:
       ret['dirs'][name]=dir.toDict()
     return ret
 
-def _http_get_json(url):
-  return json.load(urllib.request.urlopen(url))
+def _http_get_json(url,verbose=False):
+    if verbose:
+      print('_http_get_json::: '+url)
+    try:
+        req=urllib.request.urlopen(url)
+    except:
+        raise Exception('Unable to open url: '+url)
+    try:
+        ret=json.load(req)
+    except:
+        raise Exception('Unable to load json from url: '+url)
+    if verbose:
+      print('done.')
+    return ret
+
 
 def _http_post_file_data(url,fname):
   with open(fname, 'rb') as f:
@@ -343,12 +392,18 @@ def _test_url_accessible(url):
 def _is_url(path):
   return ((path.startswith('http://')) or (path.startswith('https://')))
 
+_filter_share_id_cache={}
 def _filter_share_id(id):
+  if id in _filter_share_id_cache:
+    return _filter_share_id_cache[id]
   if '.' in id:
     list=id.split('.')
     if len(list)!=2:
       return id
-    return pairio.get(list[1],collection=list[0])
+    ret=pairio.get(list[1],collection=list[0])
+    if ret:
+      _filter_share_id_cache[id]=ret
+    return ret
   else:
     return id
 
@@ -383,20 +438,23 @@ class Sha1Cache():
       else:
         os.remove(hints_fname)
 
-  def downloadFile(self,url,sha1,target_path=None):
+  def downloadFile(self,url,sha1,target_path=None,size=None):
     alternate_target_path=False
     if target_path is None:
       target_path=self._get_path(sha1,create=True)
     else:
       alternate_target_path=True
     path_tmp=target_path+'.downloading'
-    print ('Downloading file: {} -> {}'.format(url,target_path))
+    size_mb='unknown'
+    if size:
+      size_mb=int(size/(1024*1024)*10)/10
+    print ('Downloading file ({} MB): {} -> {}'.format(url,target_path))
     sha1b=self._download_and_compute_sha1(url,path_tmp)
     if not sha1b:
-      if os.exists(path_tmp):
+      if os.path.exists(path_tmp):
         os.remove(path_tmp)
     if sha1!=sha1b:
-      if os.exists(path_tmp):
+      if os.path.exists(path_tmp):
         os.remove(path_tmp)
       raise Exception('sha1 of downloaded file does not match expected {} {}'.format(url,sha1))
     if os.path.exists(target_path):
@@ -414,6 +472,14 @@ class Sha1Cache():
         os.remove(path)
     else:
       os.rename(path,path0)
+    return path0
+
+  def copyFileToCache(self,path):
+    sha1=self.computeFileSha1(path)
+    path0=self._get_path(sha1,create=True)
+    if not os.path.exists(path0):
+      copyfile(path,path0+'.copying')
+      os.rename(path0+'.copying',path0)
     return path0
 
   def computeFileSha1(self,path,_known_sha1=None):
