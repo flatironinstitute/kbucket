@@ -448,7 +448,7 @@ class Sha1Cache():
     size_mb='unknown'
     if size:
       size_mb=int(size/(1024*1024)*10)/10
-    print ('Downloading file ({} MB): {} -> {}'.format(url,target_path))
+    print ('Downloading file ({} MB): {} -> {}'.format(size_mb,url,target_path))
     sha1b=self._download_and_compute_sha1(url,path_tmp)
     if not sha1b:
       if os.path.exists(path_tmp):
