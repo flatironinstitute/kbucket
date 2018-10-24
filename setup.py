@@ -4,7 +4,7 @@ pkg_name="kbucket"
 
 setuptools.setup(
     name=pkg_name,
-    version="0.11.7",
+    version="0.11.8",
     author="Jeremy Magland",
     author_email="jmagland@flatironinstitute.org",
     description="Python client for kbucket",
