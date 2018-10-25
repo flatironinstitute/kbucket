@@ -16,14 +16,26 @@ class KBucketClient():
         url=os.getenv('KBUCKET_URL','https://kbucket.flatironinstitute.org'), # the kbucket hub url
         upload_share_id=None,
         upload_token=None,
-        local_cache_dir=os.getenv('KBUCKET_CACHE_DIR','/tmp/sha1-cache')
+        local_cache_dir=os.getenv('KBUCKET_CACHE_DIR','/tmp/sha1-cache'),
+        load_local=True,
+        load_remote=True,
+        save_remote=True
     )
     self._sha1_cache=Sha1Cache()
     self._sha1_cache.setDirectory(self._config['local_cache_dir'])
     self._nodeinfo_cache={}
     self._verbose=False
 
-  def setConfig(self,*,share_ids=None,url=None,upload_share_id=None,upload_token=None,local_cache_dir=None,verbose=None):
+  def setConfig(self,*,
+    share_ids=None,
+    url=None,
+    upload_share_id=None,
+    upload_token=None,
+    local_cache_dir=None,
+    load_local=None,
+    load_remote=None, save_remote=None,
+    verbose=None
+  ):
     if share_ids is not None:
       if type(share_ids)!=list:
         raise Exception('share_ids must be a list')
@@ -39,6 +51,12 @@ class KBucketClient():
     if local_cache_dir is not None:
       self._config['local_cache_dir']=local_cache_dir
       self._sha1_cache.setDirectory(self._config['local_cache_dir'])
+    if load_local is not None:
+      self._config['load_local']=load_local
+    if load_remote is not None:
+      self._config['load_remote']=load_remote
+    if save_remote is not None:
+      self._config['save_remote']=save_remote
     if verbose is not None:
       self._verbose=verbose
 
@@ -48,22 +66,22 @@ class KBucketClient():
         ret['upload_token']=None
     return ret
 
-  def testUpload(self):
+  def testSaveRemote(self):
     if not self._config['upload_share_id']:
       raise Exception('Cannot test upload. Share id has not been set.')
-    print('Testing upload to: '+self._config['upload_share_id'])
+    print ('Testing upload to: '+self._config['upload_share_id'])
     try:
-      self.saveObject({'test':'upload'},key={'test':'upload'})
+      self.saveObject({'test':'upload'},key={'test':'upload'},remote=True)
     except:
       raise Exception('Upload failed.')
-    print('Test upload successful.')
+    print ('Test upload successful.')
 
-  def findFile(self,path=None,*,sha1=None,share_ids=None,key=None,collection=None,remote_only=False):
-    path, sha1, size = self._find_file_helper(path=path,sha1=sha1,share_ids=share_ids,key=key,collection=collection,remote_only=remote_only)
+  def findFile(self,path=None,*,sha1=None,share_ids=None,key=None,collection=None,local=None,remote=None):
+    path, sha1, size = self._find_file_helper(path=path,sha1=sha1,share_ids=share_ids,key=key,collection=collection,local=local,remote=remote)
     return path
 
-  def realizeFile(self,path=None,*,sha1=None,share_ids=None,target_path=None,key=None,collection=None):
-    path, sha1, size = self._find_file_helper(path=path,sha1=sha1,share_ids=share_ids,key=key,collection=collection)
+  def realizeFile(self,path=None,*,sha1=None,share_ids=None,target_path=None,key=None,collection=None,local=None,remote=None):
+    path, sha1, size = self._find_file_helper(path=path,sha1=sha1,share_ids=share_ids,key=key,collection=collection,local=local,remote=remote)
     if not path:
       return None
     if not _is_url(path):
@@ -77,8 +95,8 @@ class KBucketClient():
         return path
     return self._sha1_cache.downloadFile(url=path,sha1=sha1,target_path=target_path,size=size)
 
-  def getFileSize(self, path=None,*,sha1=None,share_ids=None,key=None,collection=None):
-    path, sha1, size = self._find_file_helper(path=path,sha1=sha1,share_ids=share_ids,key=key,collection=collection)
+  def getFileSize(self, path=None,*,sha1=None,share_ids=None,key=None,collection=None,local=None,remote=None):
+    path, sha1, size = self._find_file_helper(path=path,sha1=sha1,share_ids=share_ids,key=key,collection=collection,local=local,remote=remote)
     return size
 
   def moveFileToCache(self,path):
@@ -156,7 +174,9 @@ class KBucketClient():
     dd=self.readDir(path=path,recursive=True,include_sha1=True)
     return _sha1_of_object(dd)
 
-  def _save_file_helper(self,path,share_id=None,upload_token=None,basename=None):
+  def _save_file_helper(self,path,share_id=None,upload_token=None,basename=None,remote=None):
+    if remote is None:
+      remote=self._config['save_remote']
     if not share_id:
       share_id=self._config['upload_share_id']
     if share_id:
@@ -167,7 +187,9 @@ class KBucketClient():
     
     if not upload_token:
       upload_token=self._config['upload_token']
-    if share_id and (not upload_token):
+
+
+    if (remote) and (share_id) and (not upload_token):
       raise Exception('Upload token not set for share_id='+share_id)
 
     path=self.realizeFile(path)
@@ -179,7 +201,7 @@ class KBucketClient():
 
     self.copyFileToCache(path)
 
-    if not share_id:
+    if (not remote) or (not share_id):
       # share_id not set... not uploading.
       return ret_path
 
@@ -212,8 +234,8 @@ class KBucketClient():
 
     return ret_path
 
-  def saveFile(self,fname,*,key=None,share_id=None,upload_token=None,basename=None):
-    ret=self._save_file_helper(fname,share_id=share_id,upload_token=upload_token,basename=basename)
+  def saveFile(self,fname,*,key=None,share_id=None,upload_token=None,basename=None,remote=None):
+    ret=self._save_file_helper(fname,share_id=share_id,upload_token=upload_token,basename=basename,remote=remote)
 
     if key:
       sha1=self.computeFileSha1(fname)
@@ -221,17 +243,17 @@ class KBucketClient():
 
     return ret
 
-  def saveObject(self,object,*,key,format='json',share_id=None,upload_token=None):
+  def saveObject(self,object,*,key,format='json',share_id=None,upload_token=None,remote=None):
     tmp_fname=self._create_temporary_file_for_object(object=object,format=format)
     try:
       fname=self.moveFileToCache(tmp_fname)
     except:
       os.remove(tmp_fname)
       raise
-    self.saveFile(fname,share_id=share_id,upload_token=upload_token,key=key,basename='object.json')
+    self.saveFile(fname,share_id=share_id,upload_token=upload_token,key=key,basename='object.json',remote=remote)
 
-  def loadObject(self,*,format='json',share_ids=None,key=None,collection=None):
-    fname=self.realizeFile(share_ids=share_ids,key=key,collection=collection)
+  def loadObject(self,*,format='json',share_ids=None,key=None,collection=None,local=None,remote=None):
+    fname=self.realizeFile(share_ids=share_ids,key=key,collection=collection,local=local,remote=remote)
     if fname is None:
       raise Exception('Unable to find file.')
     if format=='json':
@@ -264,7 +286,11 @@ class KBucketClient():
       self._nodeinfo_cache[share_id]=ret
     return ret
 
-  def _find_file_helper(self,*,path,sha1=None,share_ids=None,key=None,collection=None,remote_only=False):
+  def _find_file_helper(self,*,path,sha1=None,share_ids=None,key=None,collection=None,local=None,remote=None):
+    if local is None:
+      local=self._config['load_local']
+    if remote is None:
+      remote=self._config['load_remote']
     if share_ids is None:
       share_ids=self._config['share_ids']
     if key is not None:
@@ -295,17 +321,19 @@ class KBucketClient():
           return (None, None, None)
   
     # search locally
-    if remote_only:
-      path=''
-    else:
+    if local:
       path=self._sha1_cache.findFile(sha1=sha1)
+    else:
+      path=''
+      
     if path:
       return (path,sha1,os.path.getsize(path))
 
-    for id in share_ids:
-      url,size=self._find_in_share(sha1=sha1,share_id=id)
-      if url:
-        return (url,sha1,size)
+    if remote:
+      for id in share_ids:
+        url,size=self._find_in_share(sha1=sha1,share_id=id)
+        if url:
+          return (url,sha1,size)
     return (None,None,None)
 
   def _get_prv_for_file(self,*,share_id,path):
@@ -341,24 +369,9 @@ class KBucketClient():
   def _http_get_json(self,url):
     return _http_get_json(url,verbose=self._verbose)
 
-class KBucketClientDirectory:
-  def __init__(self):
-    self.files=dict()
-    self.dirs=dict()
-  def toDict(self):
-    ret=dict(
-      files={},
-      dirs={}
-    )
-    for name in self.files:
-      ret['files'][name]=self.files[name].toDict()
-    for name in self.dirs:
-      ret['dirs'][name]=dir.toDict()
-    return ret
-
 def _http_get_json(url,verbose=False):
     if verbose:
-      print('_http_get_json::: '+url)
+      print ('_http_get_json::: '+url)
     try:
         req=urllib.request.urlopen(url)
     except:
@@ -368,7 +381,7 @@ def _http_get_json(url,verbose=False):
     except:
         raise Exception('Unable to load json from url: '+url)
     if verbose:
-      print('done.')
+      print ('done.')
     return ret
 
 
