@@ -1,3 +1,5 @@
+#!/usr/bin/env node
+
 /*
 
 casuploadserver enables http uploads of files and
