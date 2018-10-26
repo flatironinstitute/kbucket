@@ -19,6 +19,10 @@ function LariHttpServer(API) {
     var params = req.params;
     API.handle_nodeinfo(params.node_id, req, res);
   });
+  m_app.post('/:leaf_node_id/api/list_processors', function(req, res) {
+    var params = req.params;
+    API.handle_list_processors(params.leaf_node_id, req, res);
+  });
 
   // API nodeinfo
   m_app.post('/:leaf_node_id/api/run_process', function(req, res) {
