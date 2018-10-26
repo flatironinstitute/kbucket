@@ -5,4 +5,4 @@ RUN npm install -g @magland/kbucket@0.11.1
 
 ADD . /src
 ADD docker/scripts_inside_docker /scripts
-RUN cd /src && more package.json && npm install .
+RUN cd /src && npm install .
