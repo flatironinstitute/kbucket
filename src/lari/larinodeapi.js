@@ -7,6 +7,7 @@ exports.LariNodeApi = LariNodeApi;
 
 const LariJobManager = require(__dirname + '/larijobmanager.js').LariJobManager;
 const LariProcessorJob = require(__dirname + '/larijobmanager.js').LariProcessorJob;
+const list_processors = require(__dirname + '/larijobmanager.js').list_processors;
 
 const JobManager = new LariJobManager();
 
@@ -43,11 +44,23 @@ function LariNodeApi(context) {
       send_500(res, 'Cannot run process on node of type: ' + m_context.config.hemlockNodeType());
       return;
     }
-
     if (!check_passcode(obj)) {
       send_500(res, 'Incorrect passcode.');
       return;
     }
+
+    list_processors(function cb(err,data) {
+      if (!err) {
+        let response = {
+          success: true,
+          error: err,
+          info: data.split('\n').filter(x => x)
+        }
+        res.json(response);
+      } else {
+        console.err(err);
+      }
+    });
   }
 
   function handle_nodeinfo(node_id, req, res) {
