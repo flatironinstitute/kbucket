@@ -36,7 +36,7 @@ function list_processors(callback) {
         callback('Non-zero exit code for ml-list-processors: ' + exit_code);
         return;
       }
-      callback(null);
+      callback(null,stdout);
     }
   );
 }

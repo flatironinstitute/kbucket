@@ -51,7 +51,7 @@ function KBucketClient() {
         callback(null, resp);
         return;
       }
-      if (resp.alt_hub_url) {
+      if (resp.alt_hub_url) { // where is this set??
         var opts2 = JSON.parse(JSON.stringify(opts));
         opts2.kbucket_url = resp.alt_hub_url;
         find_file(sha1, opts2, callback);
@@ -62,10 +62,14 @@ function KBucketClient() {
   }
 
   function find_file(sha1, opts, callback) {
+    // look for file locally first?
+      
+    // look-up has already been done.
     if (s_kbucket_client_data.infos_by_sha1[sha1]) {
       callback(null, s_kbucket_client_data.infos_by_sha1[sha1]);
       return;
     }
+    // No kbucket url to initialize tree search
     if (!m_kbucket_url) {
       callback('KBucketClient: kbucket url not set.');
       return;
@@ -75,6 +79,7 @@ function KBucketClient() {
     if (opts.filename) {
       url1 += '/' + opts.filename;
     }
+    // Query kbucket to match the sha1 hash
     http_get_json(url1, function(err, obj) {
       if (err) {
         callback(`Error in http_get_json (${url1}): ` + err, null);
@@ -86,6 +91,7 @@ function KBucketClient() {
       }
       var url = '';
       var candidate_urls = obj.urls || [];
+      //there could be multiple candidate urls to choose.
       //should this be done in series or parallel?
       async.eachSeries(candidate_urls, function(candidate_url, cb) {
         url_exists(candidate_url, function(exists) {
