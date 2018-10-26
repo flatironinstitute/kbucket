@@ -115,6 +115,9 @@ class KBucketClient():
       ret=self._read_file_system_dir(path=path,recursive=recursive,include_sha1=include_sha1)
     return ret
 
+  def pairioClient(self):
+    return pairio
+
   def _read_file_system_dir(self,*,path,recursive,include_sha1):
       ret=dict(
         files={},
