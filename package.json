@@ -1,6 +1,6 @@
 {
   "name": "@magland/kbucket",
-  "version": "0.11.12",
+  "version": "0.11.13",
   "description": "Share data for scientific research",
   "scripts": {
     "test": "echo \"No tests\" && exit 0"
@@ -42,8 +42,13 @@
     "ws": "^5.2.0",
     "dotenv": "latest"
   },
-  "directories": {
-    "bin": "bin"
+  "bin": {
+    "kbucket-host" : "./bin/kbucket-host",
+    "kbucket-hub" : "./bin/kbucket-hub",
+    "casuploadserver" : "./bin/casuploadserver",
+    "kbucket-download" : "./bin/kbucket-download",
+    "lari-host" : "./bin/lari-host",
+    "lari-hub" : "./bin/lari-hub"
   },
   "conda": {
     "build_number": 0,
