@@ -1,6 +1,6 @@
 {
   "name": "@magland/kbucket",
-  "version": "0.11.14",
+  "version": "0.11.15",
   "description": "Share data for scientific research",
   "scripts": {
     "test": "echo \"No tests\" && exit 0"
@@ -46,7 +46,6 @@
     "kbucket-host" : "./src/kbucket/kbucket-host.js",
     "kbucket-hub" : "./src/kbucket/kbucket-hub.js",
     "casuploadserver" : "./src/casuploadserver/casuploadserver.js",
-    "kbucket-download" : "./src/kbucket/kbucket-download.js",
     "lari-host" : "./src/lari/lari-host.js",
     "lari-hub" : "./src/lari/lari-hub.js"
   },
