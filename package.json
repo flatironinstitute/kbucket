@@ -43,12 +43,12 @@
     "dotenv": "latest"
   },
   "bin": {
-    "kbucket-host" : "./bin/kbucket-host",
-    "kbucket-hub" : "./bin/kbucket-hub",
-    "casuploadserver" : "./bin/casuploadserver",
-    "kbucket-download" : "./bin/kbucket-download",
-    "lari-host" : "./bin/lari-host",
-    "lari-hub" : "./bin/lari-hub"
+    "kbucket-host" : "./src/kbucket/kbucket-host.js",
+    "kbucket-hub" : "./src/kbucket/kbucket-hub.js",
+    "casuploadserver" : "./src/casuploadserver/casuploadserver.js",
+    "kbucket-download" : "./src/kbucket/kbucket-download.js",
+    "lari-host" : "./src/lari/lari-host.js",
+    "lari-hub" : "./src/lari/lari-hub.js"
   },
   "conda": {
     "build_number": 0,
