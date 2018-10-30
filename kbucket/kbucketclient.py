@@ -337,6 +337,7 @@ class KBucketClient():
         url,size=self._find_in_share(sha1=sha1,share_id=id)
         if url:
           return (url,sha1,size)
+
     return (None,None,None)
 
   def _get_prv_for_file(self,*,share_id,path):
@@ -400,7 +401,8 @@ def _http_post_file_data(url,fname):
 
 def _test_url_accessible(url):
   try:
-    code=urllib.request.urlopen(url).getcode()
+    req = urllib.request.Request(url, method="HEAD")
+    code=urllib.request.urlopen(req).getcode()
     return (code==200)
   except:
     return False
