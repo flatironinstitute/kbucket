@@ -1,9 +1,8 @@
-exports.KBucketClient=KBucketClient;
-
 const PairioClient=require('pairio').PairioClient;
 const axios = require('axios');
 
 function KBucketClient() {
+    let that=this;
 	let m_share_ids=[]; // default share ids
 	let m_url='https://kbucket.flatironinstitute.org';
 	let m_verbose=true;
@@ -22,19 +21,37 @@ function KBucketClient() {
 		}
 	}
 
-	this.setParioConfig=function(config) {
+	this.setPairioConfig=function(config) {
 		m_pairio_client.setConfig(config);
 	}
 
-	// opts: share_ids, collection
+	// opts: share_ids, collection, key
 	this.findFile=async function(path,opts) {
-		opts=opts||{};
+        opts=opts||{};
+		if (opts.key) {
+			if (opts.path) {
+				throw Error('If opts.key is given, path must be null.');
+			}
+			let sha1=await m_pairio_client.get(opts.key);
+			if (!sha1) {
+				return null;
+			}
+			return await that.findFile('sha1://'+sha1);
+		}
 		let obj=await find_file_helper(path,opts);
 		if (!obj) {
 			return null;
 		}
 		return obj['path'];
 	}
+    
+    // opts: key
+    this.loadObject=async function(path,opts) {
+        let url=await that.findFile(path,opts);
+        if (!url) return null;
+        let obj=await http_get_json(url);
+        return obj;
+    }
 
 	// opts: share_ids, collection
 	async function find_file_helper(path,opts) {
@@ -119,7 +136,6 @@ function KBucketClient() {
 
 	async function find_in_share(share_id,sha1) {
 		share_id=await filter_share_id(share_id);
-		console.log('share_id=',share_id);
 		let url=m_url+'/'+share_id+'/api/find/'+sha1;
 		let obj=await http_get_json(url);
 		if (!obj['success']) {
