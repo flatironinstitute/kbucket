@@ -77,6 +77,9 @@ function CASUploadServer() {
   m_app.use(express.json());
 
   // API /upload/:sha1?signature=[signature]
+  m_app.get('/probe', function(req, res) {
+    res.json({success:true});
+  });
   m_app.get('/check/:sha1', function(req, res) {
     let params = req.params;
     let query = req.query;
