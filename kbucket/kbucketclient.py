@@ -316,6 +316,7 @@ class KBucketClient():
         if not prv:
           return (None, None, None)
         sha1=prv['original_checksum']
+        remote=True
         ### continue to below
       else:
         if os.path.exists(path): ## Todo: also check if it is file
