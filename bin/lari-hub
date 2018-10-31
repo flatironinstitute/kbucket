@@ -1,8 +1,1 @@
-#!/bin/bash
-case "$OSTYPE" in
-    linux*)   REALPATH="$(readlink -f "$0")" ;;
-    darwin*)  REALPATH="$(realpath "$0")" ;;
-esac
-DIR="$(dirname "$REALPATH")"
-
-$DIR/../src/lari/lari-hub.js $@
+start-js
