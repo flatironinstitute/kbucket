@@ -42,7 +42,7 @@ class KBucketClient():
       self._config['share_ids']=share_ids
     if url is not None:
       self._config['url']=url
-    if upload_share_id is not None:
+    if upload_share_id:
       if not upload_token:
         raise Exception('Cannot set upload_share_id without upload token')
       self._config['upload_share_id']=upload_share_id
@@ -154,7 +154,8 @@ class KBucketClient():
         size=file0['size']
       )
       if include_sha1:
-        ret['files'][name0]['sha1']=file0['prv']['original_checksum']
+        if 'prv' in file0:
+          ret['files'][name0]['sha1']=file0['prv']['original_checksum']
     for dir0 in obj['dirs']:
       name0=dir0['name']
       ret['dirs'][name0]={}

@@ -99,7 +99,7 @@ function KBNodeApi(context) {
       subdirectory: subdirectory
     });
     //allow_cross_domain_requests(req, res);
-    if (!is_safe_path(subdirectory)) {
+    if (!is_safe_path(subdirectory)) { //important!
       send_500(res, 'Unsafe path: ' + subdirectory);
       return;
     }
@@ -154,15 +154,17 @@ function KBNodeApi(context) {
               return;
             }
             if (stat0.isFile()) {
-              var file0 = {
-                name: item,
-                size: stat0.size,
-              };
-              var prv0 = m_context.share_indexer.getPrvForIndexedFile(require('path').join(subdirectory, file0.name));
-              if (prv0) {
-                file0.prv = prv0;
+              if (!is_excluded_file_name(item)) {
+                var file0 = {
+                  name: item,
+                  size: stat0.size,
+                };
+                var prv0 = m_context.share_indexer.getPrvForIndexedFile(require('path').join(subdirectory, file0.name));
+                if (prv0) {
+                  file0.prv = prv0;
+                }
+                files.push(file0);
               }
-              files.push(file0);
             } else if (stat0.isDirectory()) {
               if (!is_excluded_directory_name(item)) {
                 dirs.push({
@@ -204,7 +206,7 @@ function KBNodeApi(context) {
     });
     //allow_cross_domain_requests(req, res);
 
-    // don't worry too much because express takes care of this below (b/c we specify a root directory)
+    // this is important
     if (!is_safe_path(filename)) {
       send_500(res, 'Unsafe path: ' + subdirectory);
       return;
@@ -315,7 +317,7 @@ function KBNodeApi(context) {
     });
     //allow_cross_domain_requests(req, res);
 
-    // don't worry too much because express takes care of this below (b/c we specify a root directory)
+    // this is important
     if (!is_safe_path(filename)) {
       send_500(res, 'Unsafe path: ' + subdirectory);
       return;
@@ -407,6 +409,9 @@ function KBNodeApi(context) {
   }
 
   function is_safe_path(path) {
+    if (path.startsWith('.')) {
+      return false; //this is extremely important -- it hides .kbucket/ and .env
+    }
     var list = path.split('/');
     for (var i in list) {
       var str = list[i];
@@ -465,6 +470,12 @@ function read_text_file(fname) {
   } catch (err) {
     return null;
   }
+}
+
+function is_excluded_file_name(name) {
+  if (name.startsWith('.')) return true;
+  var to_exclude = ['.env'];
+  return (to_exclude.indexOf(name) >= 0);
 }
 
 function is_excluded_directory_name(name) {

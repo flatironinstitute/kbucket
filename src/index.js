@@ -1,3 +1,5 @@
+exports.KBucketClient=KBucketClient;
+
 const PairioClient=require('pairio').PairioClient;
 const axios = require('axios');
 
