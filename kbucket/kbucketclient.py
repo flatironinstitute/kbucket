@@ -5,7 +5,6 @@ import random
 import hashlib
 import requests
 import random
-import tempfile
 from pairio import client as pairio
 from shutil import copyfile
 
@@ -278,7 +277,7 @@ class KBucketClient():
     return tmp_fname
 
   def _create_temporary_fname(self,fname):
-    return tempfile.gettempdir()+'/tmp_kucketclient_'+''.join(random.choices('abcdefghijklmnopqrstuvwxyz', k=10))+'.'+fname
+    return self._config['local_cache_dir']+'/tmp_kucketclient_'+''.join(random.choices('abcdefghijklmnopqrstuvwxyz', k=10))+'.'+fname
 
   def getNodeInfo(self,share_id):
     if share_id in self._nodeinfo_cache:
