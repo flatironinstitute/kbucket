@@ -477,7 +477,10 @@ class Sha1Cache():
         os.remove(path_tmp)
       raise Exception('sha1 of downloaded file does not match expected {} {}'.format(url,sha1))
     if os.path.exists(target_path):
-      os.remove(target_path)
+      try:
+        os.remove(target_path)
+      except:
+        pass
     os.rename(path_tmp,target_path)
     if alternate_target_path:
       self.computeFileSha1(target_path,_known_sha1=sha1)
