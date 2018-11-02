@@ -480,6 +480,7 @@ class Sha1Cache():
       try:
         os.remove(target_path)
       except:
+        print ('Warning: unable to remove file that we thought existed: '+target_path)
         pass
     os.rename(path_tmp,target_path)
     if alternate_target_path:
