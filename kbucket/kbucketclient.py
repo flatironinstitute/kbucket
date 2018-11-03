@@ -7,6 +7,7 @@ import requests
 import random
 from pairio import client as pairio
 from shutil import copyfile
+from .steady_download_and_compute_sha1 import steady_download_and_compute_sha1
 
 class KBucketClient():
   def __init__(self):
@@ -467,8 +468,8 @@ class Sha1Cache():
     size_mb='unknown'
     if size:
       size_mb=int(size/(1024*1024)*10)/10
-    print ('Downloading file ({} MB): {} -> {}'.format(size_mb,url,target_path))
-    sha1b=self._download_and_compute_sha1(url,path_tmp)
+    print ('Downloading file --- ({} MB): {} -> {}'.format(size_mb,url,target_path))
+    sha1b=steady_download_and_compute_sha1(url=url,target_path=path_tmp)
     if not sha1b:
       if os.path.exists(path_tmp):
         os.remove(path_tmp)
@@ -546,17 +547,17 @@ class Sha1Cache():
       if not os.path.exists(path0):
         os.makedirs(path0)
     return path0+'/'+sha1
-  def _download_and_compute_sha1(self,url,path):
-    hh = hashlib.sha1()
-    response=requests.get(url,stream=True)
-    path_tmp=path+'.'+_random_string(6)
-    with open(path_tmp,'wb') as f:
-      for chunk in response.iter_content(chunk_size=512):
-        if chunk:  # filter out keep-alive new chunks
-          hh.update(chunk)
-          f.write(chunk)
-    os.rename(path_tmp,path)
-    return hh.hexdigest()
+  #def _download_and_compute_sha1(self,url,path):
+  #  hh = hashlib.sha1()
+  #  response=requests.get(url,stream=True)
+  #  path_tmp=path+'.'+_random_string(6)
+  #  with open(path_tmp,'wb') as f:
+  #    for chunk in response.iter_content(chunk_size=512):
+  #      if chunk:  # filter out keep-alive new chunks
+  #        hh.update(chunk)
+  #        f.write(chunk)
+  #  os.rename(path_tmp,path)
+  #  return hh.hexdigest()
 
 def _compute_file_sha1(path):
   if (os.path.getsize(path)>1024*1024*100):
