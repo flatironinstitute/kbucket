@@ -1,6 +1,6 @@
 {
   "name": "@magland/kbucket",
-  "version": "0.12.4",
+  "version": "0.12.5",
   "description": "Share data for scientific research",
   "scripts": {
     "test": "echo \"No tests\" && exit 0"
@@ -37,7 +37,7 @@
     "mountainlab": "latest",
     "node-sha1": "^1.0.1",
     "object-hash": "^1.3.0",
-    "pairio": "^0.2.2",
+    "pairio": "latest",
     "request": "^2.87.0",
     "user-settings": "^0.2.0",
     "winston": "^3.0.0",

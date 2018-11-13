@@ -28,6 +28,6 @@ def steady_download_and_compute_sha1(url,target_path,chunk_size=1024*1024*10):
     sha1=hh.hexdigest()
     return sha1
   except:
-    if os.exists(path_tmp):
+    if os.path.exists(path_tmp):
       os.remove(path_tmp)
     raise
