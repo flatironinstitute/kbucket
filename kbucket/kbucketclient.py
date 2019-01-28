@@ -8,6 +8,7 @@ import random
 from pairio import client as pairio
 from shutil import copyfile
 from .steady_download_and_compute_sha1 import steady_download_and_compute_sha1
+from datetime import datetime as dt
 
 class KBucketClient():
   def __init__(self):
@@ -80,7 +81,7 @@ class KBucketClient():
     path, sha1, size = self._find_file_helper(path=path,sha1=sha1,share_ids=share_ids,key=key,collection=collection,local=local,remote=remote)
     return path
 
-  def realizeFile(self,path=None,*,sha1=None,share_ids=None,target_path=None,key=None,collection=None,local=None,remote=None):
+  def realizeFile(self,path=None,*,sha1=None,share_ids=None,target_path=None,key=None,collection=None,local=None,remote=None,verbose=True):
     path, sha1, size = self._find_file_helper(path=path,sha1=sha1,share_ids=share_ids,key=key,collection=collection,local=local,remote=remote)
     if not path:
       return None
@@ -93,7 +94,7 @@ class KBucketClient():
           return path
       else:
         return path
-    return self._sha1_cache.downloadFile(url=path,sha1=sha1,target_path=target_path,size=size)
+    return self._sha1_cache.downloadFile(url=path,sha1=sha1,target_path=target_path,size=size,verbose=verbose)
 
   def getFileSize(self, path=None,*,sha1=None,share_ids=None,key=None,collection=None,local=None,remote=None):
     path, sha1, size = self._find_file_helper(path=path,sha1=sha1,share_ids=share_ids,key=key,collection=collection,local=local,remote=remote)
@@ -306,7 +307,6 @@ class KBucketClient():
     if path is not None:
       if sha1 is not None:
         raise Exception('Cannot specify both path and sha1 in find file')
-
       if path.startswith('sha1://'):
         list=path.split('/')
         sha1=list[2]
@@ -382,6 +382,7 @@ class KBucketClient():
     return _http_get_json(url,verbose=self._verbose)
 
 def _http_get_json(url,verbose=False):
+    timer=dt.now()
     if verbose:
       print ('_http_get_json::: '+url)
     try:
@@ -395,7 +396,6 @@ def _http_get_json(url,verbose=False):
     if verbose:
       print ('done.')
     return ret
-
 
 def _http_post_file_data(url,fname):
   with open(fname, 'rb') as f:
@@ -438,15 +438,17 @@ def _safe_list_dir(path):
     ret=os.listdir(path)
     return ret
   except:
-    print('Warning: unable to listdir: '+path)
+    print ('Warning: unable to listdir: '+path)
     return []
 
 # TODO: implement cleanup() for Sha1Cache
-# removing .report.json and .hints.json files that are no longer relevant
+# removing .record.json and .hints.json files that are no longer relevant
 class Sha1Cache():
   def __init__(self):
     self._directory=''
   def setDirectory(self,directory):
+    if not os.path.exists(directory):
+      os.mkdir(directory)
     self._directory=directory
   def findFile(self,sha1):
     path=self._get_path(sha1,create=False)
@@ -468,15 +470,18 @@ class Sha1Cache():
                 matching_files.append(file)
         if len(matching_files)>0:
           hints['files']=matching_files
-          _write_json_file(hints,hints_fname)
+          try:
+            _write_json_file(hints,hints_fname)
+          except:
+            print ('Warning: problem writing hints file: '+hints_fname)
           return matching_files[0]['stat']['path']
         else:
           _safe_remove_file(hints_fname)
       else:
-        print('Warning: failed to load hints json file, or invalid file. Removing: '+hints_fname)
+        print ('Warning: failed to load hints json file, or invalid file. Removing: '+hints_fname)
         _safe_remove_file(hints_fname)
 
-  def downloadFile(self,url,sha1,target_path=None,size=None):
+  def downloadFile(self,url,sha1,target_path=None,size=None,verbose=True):
     alternate_target_path=False
     if target_path is None:
       target_path=self._get_path(sha1,create=True)
@@ -486,7 +491,8 @@ class Sha1Cache():
     size_mb='unknown'
     if size:
       size_mb=int(size/(1024*1024)*10)/10
-    print ('Downloading file --- ({} MB): {} -> {}'.format(size_mb,url,target_path))
+    if verbose:
+      print ('Downloading file --- ({} MB): {} -> {}'.format(size_mb,url,target_path))
     sha1b=steady_download_and_compute_sha1(url=url,target_path=path_tmp)
     if not sha1b:
       if os.path.exists(path_tmp):
@@ -544,9 +550,12 @@ class Sha1Cache():
       sha1=sha1,
       stat=aa
     )
-    _write_json_file(obj,path0)
+    try:
+      _write_json_file(obj,path0)
+    except:
+      print ('Warning: problem writing .record.json file: '+path0)
 
-    path1=self._get_path(sha1,create=True)+'.hints.json'
+    path1=self._get_path(sha1,create=True,directory=self._directory)+'.hints.json'
     if os.path.exists(path1):
       hints=_read_json_file(path1)
     else:
@@ -554,12 +563,17 @@ class Sha1Cache():
     if not hints:
       hints={'files':[]}
     hints['files'].append(obj)
-    _write_json_file(hints,path1)
+    try:
+      _write_json_file(hints,path1)
+    except:
+      print ('Warning: problem writing .hints.json file: '+path1)
     ## todo: use hints for findFile
     return sha1
 
-  def _get_path(self,sha1,*,create=True):
-    path0=self._directory+'/{}/{}{}'.format(sha1[0],sha1[1],sha1[2])
+  def _get_path(self,sha1,*,create=True,directory=None):
+    if directory is None:
+      directory=self._directory
+    path0=directory+'/{}/{}{}'.format(sha1[0],sha1[1],sha1[2])
     if create:
       if not os.path.exists(path0):
         os.makedirs(path0)
@@ -626,7 +640,7 @@ def _read_json_file(path):
     with open(path) as f:
       return json.load(f)
   except:
-    print('Warning: Unable to read or parse json file: '+path)
+    print ('Warning: Unable to read or parse json file: '+path)
     return None
 
 def _write_json_file(obj,path):
